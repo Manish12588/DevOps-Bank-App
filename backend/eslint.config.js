@@ -1,0 +1,22 @@
+// backend/eslint.config.js
+import js from "@eslint/js";
+import globals from "globals";
+
+export default [
+  js.configs.recommended,
+  {
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        ...globals.node, // This tells ESLint you are in a Node environment
+        process: "readonly",
+        __dirname: "readonly"
+      }
+    },
+    rules: {
+      "no-unused-vars": "warn",
+      "no-console": "off"
+    }
+  }
+];
