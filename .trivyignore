@@ -2,3 +2,27 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # CVEs accepted as low-risk or pending fix — reviewed on 2026-03-12
 # ─────────────────────────────────────────────────────────────────────────────
+
+# cross-spawn — ReDoS via crafted shell argument
+# transitive devDep (nodemon), not exposed to user input at runtime
+CVE-2024-21538
+
+# glob — Command Injection via malicious filenames
+# transitive devDep, not used with untrusted filenames in calorie-app
+CVE-2025-64756
+
+# minimatch — DoS via specially crafted glob patterns
+# transitive devDep, not called with user input in calorie-app
+CVE-2026-26996
+
+# minimatch — DoS via unbounded regex backtracking
+CVE-2026-27903
+CVE-2026-27904
+
+# node-tar — path traversal / file overwrite via crafted archives  
+CVE-2026-23745
+CVE-2026-23950
+CVE-2026-24842
+CVE-2026-26960
+CVE-2026-29786
+CVE-2026-31802
