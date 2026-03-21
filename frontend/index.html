@@ -395,7 +395,7 @@
         <div class="tier-box t2">
           <div class="tier-num">Tier 2</div>
           <div class="tier-name">Backend API</div>
-          <div class="tier-tech">node:20-alpine</div>
+          <div class="tier-tech">node:20-slim</div>
         </div>
         <div class="tier-arrow">→</div>
         <div class="tier-box t3">
@@ -410,7 +410,7 @@
           <div class="card-title">🌐 Tier 1 — Frontend</div>
           <p style="font-size:0.85rem; color:var(--muted); line-height:1.7; margin-top:0.75rem;">
             Plain HTML/CSS/JS served by <strong style="color:var(--text)">Nginx</strong>.<br>
-            Communicates with the backend via REST API calls to <code class="mono">http://localhost:3000</code>.<br><br>
+            Communicates with the backend via Nginx reverse proxy on the same host.<br><br>
             <strong style="color:var(--text)">Port:</strong> 8080
           </p>
         </div>
