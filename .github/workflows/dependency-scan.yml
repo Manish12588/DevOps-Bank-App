@@ -4,8 +4,8 @@
 name: Dependency Scan
 
 on:
-    #workflow_call:
-    workflow_dispatch:  
+    workflow_call:
+    #workflow_dispatch:  
 
 jobs:
     dependency-check:
