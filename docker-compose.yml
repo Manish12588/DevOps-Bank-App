@@ -5,6 +5,7 @@
 #  Tier 1 (Frontend) : Nginx serving HTML/CSS/JS  →  port 8080
 #  Tier 2 (Backend)  : Node.js + Express REST API →  port 3000
 #  Tier 3 (Database) : PostgreSQL 15              →  port 5432 (internal)
+#  Tier 4 (Ollama)   : Ollama (llama 3.2)         →  port 11434
 #
 # All containers share the "bank-network" bridge network.
 # DB data is persisted in the named volume "bank-pgdata".
@@ -12,6 +13,26 @@
 
 services:
 
+  # ── Tier 4: Ollama AI Inference ──────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama          # Official Ollama image from Docker Hub
+    container_name: bank-ollama
+    restart: unless-stopped
+
+    volumes:
+      # Named volume keeps downloaded models across restarts
+      - ollama-data:/root/.ollama
+
+    networks:
+      - bank-network              # Same network → backend reaches it as "ollama:11434"
+
+    # Ollama needs time to start before backend tries to call it
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
   # ── Tier 3: Database ─────────────────────────────────────────────────────────
   db:
     image: postgres:15-alpine
@@ -53,6 +74,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]
       interval: 15s
@@ -83,3 +106,5 @@ networks:
 volumes:
   bank-pgdata:
     name: bank-pgdata
+  ollama-data:               
+    name: ollama-data
