@@ -193,5 +193,37 @@ app.get('/api/transactions', async (req, res) => {
   }
 });
 
+// ── AI: Chat with the bank assistant ────────────────────────────────────────
+const OLLAMA_URL = `http://${process.env.OLLAMA_HOST || 'ollama'}:11434`;
+
+app.post('/api/ai/chat', async (req, res) => {
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: 'message is required' });
+
+  try {
+    // Pull account context so the AI knows actual balances
+    const accounts = await pool.query('SELECT owner_name, account_type, balance FROM accounts');
+    const context = accounts.rows
+      .map(a => `${a.owner_name}: ${a.account_type} — €${a.balance}`)
+      .join('\n');
+
+    const response = await fetch(`${OLLAMA_URL}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: process.env.OLLAMA_MODEL || 'llama3.2',
+        prompt: `You are a helpful bank assistant. Here are the current accounts:\n${context}\n\nCustomer question: ${message}`,
+        stream: false
+      })
+    });
+
+    if (!response.ok) throw new Error(`Ollama returned ${response.status}`);
+    const data = await response.json();
+    res.json({ reply: data.response });
+  } catch (err) {
+    res.status(500).json({ error: 'AI unavailable: ' + err.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Bank API running on port ${PORT}`));
