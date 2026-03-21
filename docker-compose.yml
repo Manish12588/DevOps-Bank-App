@@ -67,6 +67,8 @@ services:
       DB_PASSWORD: bankpass
       PORT: 3000
       NODE_ENV: production
+      OLLAMA_MODEL: tinyllama
+      OLLAMA_HOST: ollama
     ports:
       - "3000:3000"
     networks:
