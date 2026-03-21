@@ -15,7 +15,7 @@ services:
 
   # ── Tier 4: Ollama AI Inference ──────────────────────────────────────────────
   ollama:
-    image: ollama/ollama          # Official Ollama image from Docker Hub
+    image: ollama/ollama:latest-cpu         # Official Ollama image from Docker Hub
     container_name: bank-ollama
     restart: unless-stopped
 
