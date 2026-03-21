@@ -58,7 +58,6 @@ app.post('/api/accounts', async (req, res) => {
       'INSERT INTO accounts (owner_name, account_type, balance) VALUES ($1, $2, $3) RETURNING *',
       [owner_name, account_type, balance]
     );
-    // Log transaction if initial balance > 0
     if (balance > 0) {
       await pool.query(
         'INSERT INTO transactions (account_id, type, amount, description, balance_after) VALUES ($1, $2, $3, $4, $5)',
@@ -149,7 +148,7 @@ app.post('/api/transfer', async (req, res) => {
 
     const fromNew = parseFloat(from.rows[0].balance) - amt;
     const toNew = parseFloat(to.rows[0].balance) + amt;
-    const desc = description || `Transfer to/from account`;
+    const desc = description || 'Transfer to/from account';
 
     await client.query('UPDATE accounts SET balance = $1, updated_at = NOW() WHERE id = $2', [fromNew, from_account_id]);
     await client.query('UPDATE accounts SET balance = $1, updated_at = NOW() WHERE id = $2', [toNew, to_account_id]);
@@ -193,7 +192,7 @@ app.get('/api/transactions', async (req, res) => {
   }
 });
 
-// ── AI: Chat with the bank assistant ────────────────────────────────────────
+// ── AI: Chat with the bank assistant ─────────────────────────────────────────
 const OLLAMA_URL = `http://${process.env.OLLAMA_HOST || 'ollama'}:11434`;
 
 app.post('/api/ai/chat', async (req, res) => {
@@ -210,10 +209,20 @@ app.post('/api/ai/chat', async (req, res) => {
     const response = await fetch(`${OLLAMA_URL}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(120000),   // ← 2 min timeout for slow CPU inference
       body: JSON.stringify({
-        model: process.env.OLLAMA_MODEL || 'llama3.2',
-        prompt: `You are a helpful bank assistant. Here are the current accounts:\n${context}\n\nCustomer question: ${message}`,
-        stream: false
+        model: process.env.OLLAMA_MODEL || 'tinyllama',
+        prompt: `You are a helpful bank assistant. Answer concisely in 2-3 sentences max.
+Here are the current accounts:
+${context}
+
+Customer question: ${message}
+Answer:`,
+        stream: false,
+        options: {
+          num_predict: 150,    // ← limit response length for faster replies
+          temperature: 0.7,
+        }
       })
     });
 
@@ -221,7 +230,11 @@ app.post('/api/ai/chat', async (req, res) => {
     const data = await response.json();
     res.json({ reply: data.response });
   } catch (err) {
-    res.status(500).json({ error: 'AI unavailable: ' + err.message });
+    if (err.name === 'TimeoutError') {
+      res.status(504).json({ error: 'AI took too long to respond. Try a shorter question.' });
+    } else {
+      res.status(500).json({ error: 'AI unavailable: ' + err.message });
+    }
   }
 });
 
