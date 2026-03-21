@@ -8,7 +8,7 @@ jobs:
     deploy:
         runs-on: ubuntu-latest
         env:
-            DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+            DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
             DOCKER_TAG: ${{ github.sha }}
 
         steps:
@@ -25,8 +25,6 @@ jobs:
                  echo "Installing required packages & folders"
                  sudo apt-get update && sudo apt-get install docker.io docker-compose-v2 -y
                  sudo usermod -aG docker $USER
-                 mkdir -p ~/devops-bank-app/frontend
-                 mkdir -p ~/devops-bank-app/backend
                  mkdir -p ~/devops-bank-app/database
 
             - name: Copy the docker-compose file
@@ -35,7 +33,7 @@ jobs:
                 host: ${{ secrets.EC2_SSH_HOST }}
                 username: ${{ secrets.EC2_SSH_USER }}
                 key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-                source: "docker-compose.yml,frontend/,backend/,database/"
+                source: "docker-compose.yml,database/init.sql"
                 target: ~/devops-bank-app
                 
             - name: SSH to Prod server & run the app
