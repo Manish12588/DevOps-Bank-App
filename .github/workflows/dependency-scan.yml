@@ -1,0 +1,32 @@
+# packages - issues ya vulnerabilities (scan)
+# npm-audit: Code scan
+
+name: Dependency Scan
+
+on:
+    #workflow_call:
+    workflow_dispatch:  
+
+jobs:
+    dependency-check:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Code Checkout 
+              uses: actions/checkout@v5
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v5
+              with:
+                node-version: "20"
+                #cache: "npm"
+                #cache-dependency-path: "./backend/package-lock.json"
+            
+            # This creates the lockfile if npm install didn't (or if you skipped it)
+            - name: Generate Lockfile for Audit
+              working-directory: ./backend
+              run: npm install --package-lock-only
+
+              # Fails the build if "high" or "critical" vulnerabilities are found
+            - name: Run npm Audit
+              working-directory: ./backend
+              run: npm audit --audit-level=high
