@@ -29,7 +29,7 @@ COPY server.js ./
 EXPOSE 3000
 
 # Health check so Docker knows when the container is ready
-#HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
-#  CMD wget -qO- http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1))"
 
 CMD ["node", "server.js"]
