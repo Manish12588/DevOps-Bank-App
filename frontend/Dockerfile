@@ -1,6 +1,8 @@
 # ── Simple single-stage: Nginx serves static files ──────────────────────────
 # We use the official nginx alpine image which is tiny (~23 MB)
-FROM nginx:1.27-alpine3.21
+FROM nginx:alpine
+
+RUN apk update && apk upgrade --no-cache
 
 # Remove the default nginx configuration
 RUN rm /etc/nginx/conf.d/default.conf
