@@ -26,5 +26,5 @@ jobs:
                 context: ./backend  #Path of the docker file
                 push: true
                 tags: |
-                  ${{secrets.DOCKERHUB_USERNAME}}/calorie-app:latest
-                  ${{secrets.DOCKERHUB_USERNAME}}/calorie-app:${{github.sha}}
+                  ${{secrets.DOCKERHUB_USERNAME}}/devops-bank-app:latest
+                  ${{secrets.DOCKERHUB_USERNAME}}/devops-bank-app:${{github.sha}}
