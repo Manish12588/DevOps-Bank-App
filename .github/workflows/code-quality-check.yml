@@ -13,11 +13,7 @@ jobs:
   validate:
     name: Lint and SAST Scan
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.13"]
-
+   
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,10 +26,10 @@ jobs:
           cache-dependency-path: "./backend/package.json"
 
       # Install Python to run the SAST scanner (njsscan)
-      - name: Setup Python ${{matrix.python-version}}
+      - name: Setup Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: ${{matrix.python-version}}
+          python-version: "3.13"
 
       - name: Install Dependencies
         working-directory: ./backend
