@@ -13,7 +13,7 @@ FROM node:20-slim
 WORKDIR /app
 
 # Create a non-root user for security (best practice)
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+#RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 # Copy installed modules from deps stage
 COPY --from=deps /app/node_modules ./node_modules
