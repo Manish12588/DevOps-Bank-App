@@ -1,30 +1,37 @@
 name: Docker Build and Push
 
 on:
-    #push:
-    #    branches:
-    #        - main
-    #workflow_dispatch:
-    workflow_call:
-      
-jobs:
-    docker-build-and-push:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout Code
-              uses: actions/checkout@v5
+  workflow_call:
 
-            - name: Login to Docker Hub
-              uses: docker/login-action@v3
-              with:
-                username: ${{ secrets.DOCKERHUB_USERNAME }}
-                password: ${{ secrets.DOCKERHUB_TOKEN }}
-            
-            - name: Build and Push Image to Dockerhub
-              uses: docker/build-push-action@v6
-              with:
-                context: ./backend  #Path of the docker file
-                push: true
-                tags: |
-                  ${{secrets.DOCKERHUB_USERNAME}}/devops-bank-app:latest
-                  ${{secrets.DOCKERHUB_USERNAME}}/devops-bank-app:${{github.sha}}
+jobs:
+  docker-build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ── Backend ──────────────────────────────────────────────────────────────
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-backend:${{ github.sha }}
+
+      # ── Frontend ─────────────────────────────────────────────────────────────
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-frontend:${{ github.sha }}

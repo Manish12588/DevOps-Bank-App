@@ -14,24 +14,18 @@ services:
 
   # ── Tier 3: Database ─────────────────────────────────────────────────────────
   db:
-    image: postgres:15-alpine          # Official Postgres image, alpine variant (smaller)
+    image: postgres:15-alpine
     container_name: bank-db
-    restart: unless-stopped            # Auto-restart on crash, but not on `docker compose down`
-
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: bankdb              # Database name
-      POSTGRES_USER: bankuser         # Superuser for this DB
-      POSTGRES_PASSWORD: bankpass     # ⚠️  Use Docker secrets or .env in production!
-
+      POSTGRES_DB: bankdb
+      POSTGRES_USER: bankuser
+      POSTGRES_PASSWORD: bankpass
     volumes:
-      # Named volume → data persists across container restarts
       - bank-pgdata:/var/lib/postgresql/data
-      # Init script → runs ONCE when the volume is first created
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-
     networks:
       - bank-network
-
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bankuser -d bankdb"]
       interval: 10s
@@ -41,31 +35,24 @@ services:
 
   # ── Tier 2: Backend API ──────────────────────────────────────────────────────
   backend:
-    build:
-      context: ./backend              # Docker build context
-      dockerfile: Dockerfile
+    image: ${DOCKERHUB_USER}/devops-bank-app-backend:${DOCKER_TAG}   # ← pull from DockerHub
     container_name: bank-backend
     restart: unless-stopped
-
     environment:
-      DB_HOST: db                     # Hostname = service name on the Docker network
+      DB_HOST: db
       DB_PORT: 5432
       DB_NAME: bankdb
       DB_USER: bankuser
       DB_PASSWORD: bankpass
       PORT: 3000
       NODE_ENV: production
-
     ports:
-      - "3000:3000"                   # Expose API to host (for curl/Postman testing)
-
+      - "3000:3000"
     networks:
       - bank-network
-
     depends_on:
       db:
-        condition: service_healthy    # Wait until Postgres passes its healthcheck
-
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode === 200 ? 0 : 1))\""]
       interval: 15s
@@ -75,29 +62,24 @@ services:
 
   # ── Tier 1: Frontend ─────────────────────────────────────────────────────────
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: ${DOCKERHUB_USER}/devops-bank-app-frontend:${DOCKER_TAG}  # ← pull from DockerHub
     container_name: bank-frontend
     restart: unless-stopped
-
     ports:
-      - "8080:80"                     # Access the app at http://localhost:8080
-
+      - "8080:80"
     networks:
       - bank-network
-
     depends_on:
       backend:
-        condition: service_healthy    # Wait until the backend is healthy
+        condition: service_healthy
 
 # ── Networks ─────────────────────────────────────────────────────────────────
 networks:
   bank-network:
-    driver: bridge                    # Default driver; containers share an internal subnet
+    driver: bridge
     name: bank-network
 
 # ── Volumes ──────────────────────────────────────────────────────────────────
 volumes:
   bank-pgdata:
-    name: bank-pgdata                 # Named volume so data survives `docker compose down`
+    name: bank-pgdata
