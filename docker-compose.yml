@@ -1,0 +1,103 @@
+# ============================================================
+# docker-compose.yml — Three-Tier Bank Application
+# ============================================================
+#
+#  Tier 1 (Frontend) : Nginx serving HTML/CSS/JS  →  port 8080
+#  Tier 2 (Backend)  : Node.js + Express REST API →  port 3000
+#  Tier 3 (Database) : PostgreSQL 15              →  port 5432 (internal)
+#
+# All containers share the "bank-network" bridge network.
+# DB data is persisted in the named volume "bank-pgdata".
+# ============================================================
+
+services:
+
+  # ── Tier 3: Database ─────────────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine          # Official Postgres image, alpine variant (smaller)
+    container_name: bank-db
+    restart: unless-stopped            # Auto-restart on crash, but not on `docker compose down`
+
+    environment:
+      POSTGRES_DB: bankdb              # Database name
+      POSTGRES_USER: bankuser         # Superuser for this DB
+      POSTGRES_PASSWORD: bankpass     # ⚠️  Use Docker secrets or .env in production!
+
+    volumes:
+      # Named volume → data persists across container restarts
+      - bank-pgdata:/var/lib/postgresql/data
+      # Init script → runs ONCE when the volume is first created
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+    networks:
+      - bank-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bankuser -d bankdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Tier 2: Backend API ──────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend              # Docker build context
+      dockerfile: Dockerfile
+    container_name: bank-backend
+    restart: unless-stopped
+
+    environment:
+      DB_HOST: db                     # Hostname = service name on the Docker network
+      DB_PORT: 5432
+      DB_NAME: bankdb
+      DB_USER: bankuser
+      DB_PASSWORD: bankpass
+      PORT: 3000
+      NODE_ENV: production
+
+    ports:
+      - "3000:3000"                   # Expose API to host (for curl/Postman testing)
+
+    networks:
+      - bank-network
+
+    depends_on:
+      db:
+        condition: service_healthy    # Wait until Postgres passes its healthcheck
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ── Tier 1: Frontend ─────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bank-frontend
+    restart: unless-stopped
+
+    ports:
+      - "8080:80"                     # Access the app at http://localhost:8080
+
+    networks:
+      - bank-network
+
+    depends_on:
+      backend:
+        condition: service_healthy    # Wait until the backend is healthy
+
+# ── Networks ─────────────────────────────────────────────────────────────────
+networks:
+  bank-network:
+    driver: bridge                    # Default driver; containers share an internal subnet
+    name: bank-network
+
+# ── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  bank-pgdata:
+    name: bank-pgdata                 # Named volume so data survives `docker compose down`

@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevOps — Learning Bank App</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f1e;
+    --surface: #111827;
+    --surface2: #1a2236;
+    --border: #1f2d45;
+    --accent: #3b82f6;
+    --accent2: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --gold: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, #0f1729 0%, #0a0f1e 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px; position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .logo { display: flex; align-items: center; gap: 0.6rem; }
+  .logo-icon { width: 36px; height: 36px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .logo-name { font-family: 'DM Serif Display', serif; font-size: 1.4rem; color: #fff; letter-spacing: -0.5px; }
+  .logo-badge { font-size: 0.6rem; background: var(--accent); color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 600; letter-spacing: 1px; margin-left: 4px; vertical-align: middle; }
+  .health-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 6px; transition: background 0.3s; }
+  .health-dot.ok { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+  .health-dot.err { background: var(--danger); }
+  .health-label { font-size: 0.78rem; color: var(--muted); }
+
+  /* ── Layout ── */
+  .layout { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 64px); }
+
+  /* ── Sidebar ── */
+  nav { background: var(--surface); border-right: 1px solid var(--border); padding: 1.5rem 1rem; }
+  .nav-section { margin-bottom: 2rem; }
+  .nav-label { font-size: 0.65rem; font-weight: 600; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; padding: 0 0.5rem; margin-bottom: 0.5rem; }
+  .nav-item {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.6rem 0.75rem; border-radius: 8px;
+    cursor: pointer; transition: all 0.15s; color: var(--muted);
+    font-size: 0.88rem; font-weight: 500; margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: rgba(59,130,246,0.15); color: var(--accent); }
+  .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+
+  /* ── Main ── */
+  main { padding: 2rem; overflow-y: auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── Page Header ── */
+  .page-header { margin-bottom: 1.5rem; }
+  .page-title { font-family: 'DM Serif Display', serif; font-size: 1.8rem; color: #fff; }
+  .page-sub { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+
+  /* ── Cards ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .card-title { font-size: 0.75rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+
+  /* ── Stats Grid ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; position: relative; overflow: hidden; }
+  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent); }
+  .stat-card.green::before { background: var(--accent2); }
+  .stat-card.gold::before { background: var(--gold); }
+  .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 600; color: #fff; margin: 0.25rem 0; }
+  .stat-label { font-size: 0.75rem; color: var(--muted); font-weight: 500; }
+
+  /* ── Accounts List ── */
+  .accounts-grid { display: grid; gap: 1rem; }
+  .account-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .account-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(59,130,246,0.1); }
+  .account-info { display: flex; align-items: center; gap: 1rem; }
+  .account-avatar { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 600; flex-shrink: 0; }
+  .account-avatar.savings  { background: rgba(59,130,246,0.15); color: var(--accent); }
+  .account-avatar.checking { background: rgba(16,185,129,0.15); color: var(--accent2); }
+  .account-avatar.business { background: rgba(251,191,36,0.15); color: var(--gold); }
+  .account-name { font-weight: 600; color: #fff; }
+  .account-type-badge { font-size: 0.65rem; background: var(--surface2); color: var(--muted); padding: 2px 7px; border-radius: 20px; margin-top: 3px; display: inline-block; letter-spacing: 1px; text-transform: uppercase; }
+  .account-balance { text-align: right; }
+  .balance-amount { font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 600; color: #fff; }
+  .balance-label { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+  .account-id { font-size: 0.72rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+  /* ── Forms ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 0.78rem; font-weight: 600; color: var(--muted); letter-spacing: 0.5px; }
+  input, select, textarea {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); padding: 0.6rem 0.9rem; font-size: 0.9rem; font-family: inherit;
+    outline: none; transition: border 0.2s; width: 100%;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+  .btn {
+    padding: 0.65rem 1.4rem; border-radius: 8px; border: none; cursor: pointer;
+    font-family: inherit; font-size: 0.88rem; font-weight: 600; transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 0.4rem;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+  .btn-success { background: var(--accent2); color: #fff; }
+  .btn-success:hover { background: #059669; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Section tabs ── */
+  .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+  .tab { padding: 0.5rem 1rem; cursor: pointer; font-size: 0.85rem; font-weight: 500; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* ── Transactions table ── */
+  .tx-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .tx-table th { text-align: left; padding: 0.6rem 1rem; color: var(--muted); font-size: 0.7rem; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .tx-table td { padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
+  .tx-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .tx-type { padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; }
+  .tx-type.DEPOSIT     { background: rgba(16,185,129,0.15); color: var(--accent2); }
+  .tx-type.WITHDRAWAL  { background: rgba(239,68,68,0.15);  color: var(--danger); }
+  .tx-type.TRANSFER_IN  { background: rgba(59,130,246,0.15); color: var(--accent); }
+  .tx-type.TRANSFER_OUT { background: rgba(245,158,11,0.15); color: var(--warning); }
+  .amount-pos { color: var(--accent2); font-family: 'JetBrains Mono', monospace; }
+  .amount-neg { color: var(--danger); font-family: 'JetBrains Mono', monospace; }
+  .amount-neu { color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+
+  /* ── Alert ── */
+  .alert { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1rem; display: none; }
+  .alert.show { display: block; }
+  .alert.success { background: rgba(16,185,129,0.15); border: 1px solid var(--accent2); color: var(--accent2); }
+  .alert.error   { background: rgba(239,68,68,0.15);  border: 1px solid var(--danger);  color: var(--danger); }
+
+  /* ── Empty state ── */
+  .empty { text-align: center; padding: 3rem; color: var(--muted); }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+
+  /* ── Loading ── */
+  .loading { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.85rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+
+  /* ── Mono text ── */
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+
+  /* ── Docker Info Banner ── */
+  .docker-banner { background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(16,185,129,0.05)); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; }
+  .docker-banner .icon { font-size: 1.5rem; }
+  .docker-banner p { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+  .docker-banner strong { color: var(--text); }
+
+  .tier-diagram { display: flex; gap: 0.5rem; align-items: center; margin: 1.5rem 0; flex-wrap: wrap; }
+  .tier-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1rem; text-align: center; flex: 1; min-width: 130px; }
+  .tier-box .tier-num { font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 0.25rem; }
+  .tier-box .tier-name { font-weight: 600; color: #fff; font-size: 0.9rem; }
+  .tier-box .tier-tech { font-size: 0.75rem; color: var(--accent); margin-top: 0.2rem; font-family: 'JetBrains Mono', monospace; }
+  .tier-arrow { color: var(--muted); font-size: 1.2rem; }
+  .tier-box.t1 { border-top: 2px solid var(--accent); }
+  .tier-box.t2 { border-top: 2px solid var(--accent2); }
+  .tier-box.t3 { border-top: 2px solid var(--gold); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } .layout { grid-template-columns: 1fr; } nav { display: flex; overflow-x: auto; gap: 0.5rem; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🏦</div>
+    <span class="logo-name">DevOps-Learning-Bank<span class="logo-badge">DOCKER</span></span>
+  </div>
+  <div>
+    <span class="health-dot" id="healthDot"></span>
+    <span class="health-label" id="healthLabel">Connecting…</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav>
+    <div class="nav-section">
+      <div class="nav-label">Banking</div>
+      <div class="nav-item active" onclick="showPage('dashboard')"><span class="icon">📊</span> Dashboard</div>
+      <div class="nav-item" onclick="showPage('accounts')"><span class="icon">🏧</span> Accounts</div>
+      <div class="nav-item" onclick="showPage('transactions')"><span class="icon">📋</span> Transactions</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Operations</div>
+      <div class="nav-item" onclick="showPage('deposit')"><span class="icon">⬆️</span> Deposit</div>
+      <div class="nav-item" onclick="showPage('withdraw')"><span class="icon">⬇️</span> Withdraw</div>
+      <div class="nav-item" onclick="showPage('transfer')"><span class="icon">↔️</span> Transfer</div>
+      <div class="nav-item" onclick="showPage('newaccount')"><span class="icon">➕</span> New Account</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Learning</div>
+      <div class="nav-item" onclick="showPage('about')"><span class="icon">🐳</span> Architecture</div>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- ── DASHBOARD ── -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Real-time overview of all accounts</div>
+      </div>
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card"><div class="stat-label">Total Accounts</div><div class="stat-value" id="statAccounts">—</div></div>
+        <div class="stat-card green"><div class="stat-label">Total Deposits</div><div class="stat-value" id="statTotal">—</div></div>
+        <div class="stat-card gold"><div class="stat-label">Transactions</div><div class="stat-value" id="statTx">—</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">All Accounts</div>
+        <div id="dashAccountsList" class="accounts-grid" style="margin-top:1rem;"></div>
+      </div>
+    </div>
+
+    <!-- ── ACCOUNTS ── -->
+    <div class="page" id="page-accounts">
+      <div class="page-header">
+        <div class="page-title">Accounts</div>
+        <div class="page-sub">Click an account to view its transactions</div>
+      </div>
+      <div id="accountsList" class="accounts-grid"></div>
+      <div id="accountDetail" style="margin-top:1.5rem; display:none;">
+        <div class="card">
+          <div class="card-title" id="detailTitle">Transactions</div>
+          <div id="detailTxList" style="margin-top:0.75rem;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TRANSACTIONS ── -->
+    <div class="page" id="page-transactions">
+      <div class="page-header">
+        <div class="page-title">All Transactions</div>
+        <div class="page-sub">Latest 100 transactions across all accounts</div>
+      </div>
+      <div class="card" style="overflow-x:auto;">
+        <div id="allTxList"></div>
+      </div>
+    </div>
+
+    <!-- ── DEPOSIT ── -->
+    <div class="page" id="page-deposit">
+      <div class="page-header"><div class="page-title">Deposit Funds</div></div>
+      <div class="card" style="max-width:520px;">
+        <div id="depositAlert" class="alert"></div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Select Account</label>
+            <select id="depositAccount"></select>
+          </div>
+          <div class="form-group full">
+            <label>Amount (€)</label>
+            <input type="number" id="depositAmount" placeholder="0.00" min="0.01" step="0.01">
+          </div>
+          <div class="form-group full">
+            <label>Description (optional)</label>
+            <input type="text" id="depositDesc" placeholder="e.g. Salary payment">
+          </div>
+          <div class="form-group full">
+            <button class="btn btn-success" onclick="doDeposit()">⬆️ Deposit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── WITHDRAW ── -->
+    <div class="page" id="page-withdraw">
+      <div class="page-header"><div class="page-title">Withdraw Funds</div></div>
+      <div class="card" style="max-width:520px;">
+        <div id="withdrawAlert" class="alert"></div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Select Account</label>
+            <select id="withdrawAccount"></select>
+          </div>
+          <div class="form-group full">
+            <label>Amount (€)</label>
+            <input type="number" id="withdrawAmount" placeholder="0.00" min="0.01" step="0.01">
+          </div>
+          <div class="form-group full">
+            <label>Description (optional)</label>
+            <input type="text" id="withdrawDesc" placeholder="e.g. Rent payment">
+          </div>
+          <div class="form-group full">
+            <button class="btn btn-danger" onclick="doWithdraw()">⬇️ Withdraw</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TRANSFER ── -->
+    <div class="page" id="page-transfer">
+      <div class="page-header"><div class="page-title">Transfer Funds</div></div>
+      <div class="card" style="max-width:520px;">
+        <div id="transferAlert" class="alert"></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>From Account</label>
+            <select id="transferFrom"></select>
+          </div>
+          <div class="form-group">
+            <label>To Account</label>
+            <select id="transferTo"></select>
+          </div>
+          <div class="form-group full">
+            <label>Amount (€)</label>
+            <input type="number" id="transferAmount" placeholder="0.00" min="0.01" step="0.01">
+          </div>
+          <div class="form-group full">
+            <label>Description (optional)</label>
+            <input type="text" id="transferDesc" placeholder="e.g. Invoice payment">
+          </div>
+          <div class="form-group full">
+            <button class="btn btn-primary" onclick="doTransfer()">↔️ Transfer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── NEW ACCOUNT ── -->
+    <div class="page" id="page-newaccount">
+      <div class="page-header"><div class="page-title">Open New Account</div></div>
+      <div class="card" style="max-width:520px;">
+        <div id="newAccAlert" class="alert"></div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Account Holder Name</label>
+            <input type="text" id="newName" placeholder="e.g. Jane Doe">
+          </div>
+          <div class="form-group">
+            <label>Account Type</label>
+            <select id="newType">
+              <option value="SAVINGS">Savings</option>
+              <option value="CHECKING">Checking</option>
+              <option value="BUSINESS">Business</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Initial Balance (€)</label>
+            <input type="number" id="newBalance" placeholder="0.00" min="0" step="0.01">
+          </div>
+          <div class="form-group full">
+            <button class="btn btn-primary" onclick="doCreateAccount()">➕ Open Account</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ABOUT / ARCHITECTURE ── -->
+    <div class="page" id="page-about">
+      <div class="page-header">
+        <div class="page-title">🐳 Architecture</div>
+        <div class="page-sub">How this Docker learning app is structured</div>
+      </div>
+
+      <div class="docker-banner">
+        <div class="icon">🎓</div>
+        <div>
+          <p><strong>This is a Docker Learning App.</strong> It demonstrates a classic three-tier architecture fully containerized with Docker Compose. Each tier runs in its own container and communicates over a Docker bridge network.</p>
+        </div>
+      </div>
+
+      <div class="tier-diagram">
+        <div class="tier-box t1">
+          <div class="tier-num">Tier 1</div>
+          <div class="tier-name">Frontend</div>
+          <div class="tier-tech">nginx:alpine</div>
+        </div>
+        <div class="tier-arrow">→</div>
+        <div class="tier-box t2">
+          <div class="tier-num">Tier 2</div>
+          <div class="tier-name">Backend API</div>
+          <div class="tier-tech">node:20-alpine</div>
+        </div>
+        <div class="tier-arrow">→</div>
+        <div class="tier-box t3">
+          <div class="tier-num">Tier 3</div>
+          <div class="tier-name">Database</div>
+          <div class="tier-tech">postgres:15</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">🌐 Tier 1 — Frontend</div>
+          <p style="font-size:0.85rem; color:var(--muted); line-height:1.7; margin-top:0.75rem;">
+            Plain HTML/CSS/JS served by <strong style="color:var(--text)">Nginx</strong>.<br>
+            Communicates with the backend via REST API calls to <code class="mono">http://localhost:3000</code>.<br><br>
+            <strong style="color:var(--text)">Port:</strong> 8080
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">⚙️ Tier 2 — Backend API</div>
+          <p style="font-size:0.85rem; color:var(--muted); line-height:1.7; margin-top:0.75rem;">
+            <strong style="color:var(--text)">Node.js + Express</strong> REST API.<br>
+            Handles business logic: deposit, withdraw, transfer with ACID transactions.<br><br>
+            <strong style="color:var(--text)">Port:</strong> 3000
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">🗄️ Tier 3 — Database</div>
+          <p style="font-size:0.85rem; color:var(--muted); line-height:1.7; margin-top:0.75rem;">
+            <strong style="color:var(--text)">PostgreSQL 15</strong>.<br>
+            Stores accounts and transactions. Data persists via a Docker named volume.<br><br>
+            <strong style="color:var(--text)">Port:</strong> 5432 (internal only)
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">🔗 Docker Network</div>
+          <p style="font-size:0.85rem; color:var(--muted); line-height:1.7; margin-top:0.75rem;">
+            All containers share the <code class="mono">bank-network</code> bridge network.<br>
+            Services call each other by container name (e.g., backend calls <code class="mono">db:5432</code>).<br><br>
+            <strong style="color:var(--text)">Volume:</strong> bank-pgdata
+          </p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:1.5rem;">
+        <div class="card-title">📡 API Endpoints</div>
+        <table class="tx-table" style="margin-top:0.75rem;">
+          <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tx-type DEPOSIT">GET</span></td><td class="mono">/health</td><td style="color:var(--muted)">Health check</td></tr>
+            <tr><td><span class="tx-type DEPOSIT">GET</span></td><td class="mono">/api/accounts</td><td style="color:var(--muted)">List all accounts</td></tr>
+            <tr><td><span class="tx-type TRANSFER_IN">POST</span></td><td class="mono">/api/accounts</td><td style="color:var(--muted)">Create new account</td></tr>
+            <tr><td><span class="tx-type DEPOSIT">GET</span></td><td class="mono">/api/accounts/:id</td><td style="color:var(--muted)">Get single account</td></tr>
+            <tr><td><span class="tx-type TRANSFER_IN">POST</span></td><td class="mono">/api/accounts/:id/deposit</td><td style="color:var(--muted)">Deposit to account</td></tr>
+            <tr><td><span class="tx-type TRANSFER_IN">POST</span></td><td class="mono">/api/accounts/:id/withdraw</td><td style="color:var(--muted)">Withdraw from account</td></tr>
+            <tr><td><span class="tx-type TRANSFER_IN">POST</span></td><td class="mono">/api/transfer</td><td style="color:var(--muted)">Transfer between accounts</td></tr>
+            <tr><td><span class="tx-type DEPOSIT">GET</span></td><td class="mono">/api/transactions</td><td style="color:var(--muted)">All transactions</td></tr>
+            <tr><td><span class="tx-type DEPOSIT">GET</span></td><td class="mono">/api/accounts/:id/transactions</td><td style="color:var(--muted)">Account transactions</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const API = 'http://localhost:3000';
+let accounts = [];
+
+// ── Navigation ──────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event && event.currentTarget && event.currentTarget.classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'accounts') loadAccounts();
+  if (name === 'transactions') loadAllTransactions();
+  if (['deposit','withdraw','transfer','newaccount'].includes(name)) populateSelects();
+}
+// fix nav active on load
+document.querySelectorAll('.nav-item')[0].classList.add('active');
+
+// ── Health Check ────────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(API + '/health');
+    const d = await r.json();
+    document.getElementById('healthDot').className = 'health-dot ok';
+    document.getElementById('healthLabel').textContent = 'API connected';
+  } catch {
+    document.getElementById('healthDot').className = 'health-dot err';
+    document.getElementById('healthLabel').textContent = 'API unreachable';
+  }
+}
+checkHealth();
+setInterval(checkHealth, 10000);
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+const fmt = (n) => '€' + parseFloat(n).toLocaleString('de-DE', { minimumFractionDigits: 2 });
+const fmtDate = (s) => new Date(s).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
+const avatarClass = (t) => ({ SAVINGS: 'savings', CHECKING: 'checking', BUSINESS: 'business' }[t] || 'savings');
+const avatarIcon = (t) => ({ SAVINGS: '💰', CHECKING: '🏧', BUSINESS: '🏢' }[t] || '💳');
+
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.className = 'alert show ' + type;
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+async function fetchAccounts() {
+  const r = await fetch(API + '/api/accounts');
+  accounts = await r.json();
+  return accounts;
+}
+
+function accountCardHTML(acc, onclick = '') {
+  return `<div class="account-card" onclick="${onclick}">
+    <div class="account-info">
+      <div class="account-avatar ${avatarClass(acc.account_type)}">${avatarIcon(acc.account_type)}</div>
+      <div>
+        <div class="account-name">${acc.owner_name}</div>
+        <span class="account-type-badge">${acc.account_type}</span>
+        <div class="account-id">#${String(acc.id).padStart(5,'0')}</div>
+      </div>
+    </div>
+    <div class="account-balance">
+      <div class="balance-amount">${fmt(acc.balance)}</div>
+      <div class="balance-label">Available Balance</div>
+    </div>
+  </div>`;
+}
+
+function txTableHTML(rows) {
+  if (!rows.length) return '<div class="empty"><div class="empty-icon">📭</div><p>No transactions yet</p></div>';
+  const amtClass = (t) => (['DEPOSIT','TRANSFER_IN'].includes(t) ? 'amount-pos' : t === 'WITHDRAWAL' ? 'amount-neg' : 'amount-neu');
+  const amtSign  = (t) => (['DEPOSIT','TRANSFER_IN'].includes(t) ? '+' : '-');
+  return `<table class="tx-table">
+    <thead><tr><th>#</th><th>Type</th><th>Amount</th><th>Balance After</th><th>Description</th>${rows[0].owner_name ? '<th>Account</th>' : ''}<th>Date</th></tr></thead>
+    <tbody>${rows.map(t => `<tr>
+      <td class="mono" style="color:var(--muted)">${t.id}</td>
+      <td><span class="tx-type ${t.type}">${t.type.replace('_',' ')}</span></td>
+      <td class="${amtClass(t.type)}">${amtSign(t.type)}${fmt(t.amount)}</td>
+      <td class="mono">${fmt(t.balance_after)}</td>
+      <td style="color:var(--muted)">${t.description || '—'}</td>
+      ${t.owner_name ? `<td style="color:var(--muted)">${t.owner_name}</td>` : ''}
+      <td style="color:var(--muted)">${fmtDate(t.created_at)}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+// ── Dashboard ───────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const [accs, txs] = await Promise.all([
+    fetch(API + '/api/accounts').then(r => r.json()),
+    fetch(API + '/api/transactions').then(r => r.json())
+  ]);
+  accounts = accs;
+  const total = accs.reduce((s, a) => s + parseFloat(a.balance), 0);
+  document.getElementById('statAccounts').textContent = accs.length;
+  document.getElementById('statTotal').textContent = fmt(total);
+  document.getElementById('statTx').textContent = txs.length;
+  document.getElementById('dashAccountsList').innerHTML = accs.map(a => accountCardHTML(a)).join('');
+}
+
+// ── Accounts ─────────────────────────────────────────────────────────────────
+async function loadAccounts() {
+  const accs = await fetchAccounts();
+  document.getElementById('accountsList').innerHTML = accs.map(a =>
+    accountCardHTML(a, `loadAccountDetail(${a.id}, '${a.owner_name}')`)
+  ).join('');
+  document.getElementById('accountDetail').style.display = 'none';
+}
+
+async function loadAccountDetail(id, name) {
+  document.getElementById('accountDetail').style.display = 'block';
+  document.getElementById('detailTitle').textContent = `Transactions — ${name}`;
+  document.getElementById('detailTxList').innerHTML = '<div class="loading"><span class="spinner"></span>Loading…</div>';
+  const txs = await fetch(API + '/api/accounts/' + id + '/transactions').then(r => r.json());
+  document.getElementById('detailTxList').innerHTML = txTableHTML(txs);
+}
+
+// ── All Transactions ─────────────────────────────────────────────────────────
+async function loadAllTransactions() {
+  document.getElementById('allTxList').innerHTML = '<div class="loading"><span class="spinner"></span>Loading…</div>';
+  const txs = await fetch(API + '/api/transactions').then(r => r.json());
+  document.getElementById('allTxList').innerHTML = txTableHTML(txs);
+}
+
+// ── Populate Selects ─────────────────────────────────────────────────────────
+async function populateSelects() {
+  const accs = await fetchAccounts();
+  const opts = accs.map(a => `<option value="${a.id}">${a.owner_name} — ${a.account_type} (${fmt(a.balance)})</option>`).join('');
+  ['depositAccount','withdrawAccount','transferFrom','transferTo'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.innerHTML = opts;
+  });
+}
+
+// ── Operations ───────────────────────────────────────────────────────────────
+async function doDeposit() {
+  const id = document.getElementById('depositAccount').value;
+  const amount = document.getElementById('depositAmount').value;
+  const description = document.getElementById('depositDesc').value;
+  try {
+    const r = await fetch(`${API}/api/accounts/${id}/deposit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount, description }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error);
+    showAlert('depositAlert', `✅ Deposited ${fmt(amount)} successfully. New balance: ${fmt(d.new_balance)}`, 'success');
+    document.getElementById('depositAmount').value = '';
+    populateSelects();
+  } catch (e) { showAlert('depositAlert', '❌ ' + e.message, 'error'); }
+}
+
+async function doWithdraw() {
+  const id = document.getElementById('withdrawAccount').value;
+  const amount = document.getElementById('withdrawAmount').value;
+  const description = document.getElementById('withdrawDesc').value;
+  try {
+    const r = await fetch(`${API}/api/accounts/${id}/withdraw`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount, description }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error);
+    showAlert('withdrawAlert', `✅ Withdrawn ${fmt(amount)} successfully. New balance: ${fmt(d.new_balance)}`, 'success');
+    document.getElementById('withdrawAmount').value = '';
+    populateSelects();
+  } catch (e) { showAlert('withdrawAlert', '❌ ' + e.message, 'error'); }
+}
+
+async function doTransfer() {
+  const from_account_id = document.getElementById('transferFrom').value;
+  const to_account_id = document.getElementById('transferTo').value;
+  const amount = document.getElementById('transferAmount').value;
+  const description = document.getElementById('transferDesc').value;
+  try {
+    const r = await fetch(`${API}/api/transfer`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from_account_id, to_account_id, amount, description }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error);
+    showAlert('transferAlert', `✅ Transferred ${fmt(amount)} successfully.`, 'success');
+    document.getElementById('transferAmount').value = '';
+    populateSelects();
+  } catch (e) { showAlert('transferAlert', '❌ ' + e.message, 'error'); }
+}
+
+async function doCreateAccount() {
+  const owner_name = document.getElementById('newName').value;
+  const account_type = document.getElementById('newType').value;
+  const initial_balance = document.getElementById('newBalance').value;
+  try {
+    const r = await fetch(`${API}/api/accounts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner_name, account_type, initial_balance }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error);
+    showAlert('newAccAlert', `✅ Account created for ${d.owner_name} (ID: #${String(d.id).padStart(5,'0')})`, 'success');
+    document.getElementById('newName').value = '';
+    document.getElementById('newBalance').value = '';
+  } catch (e) { showAlert('newAccAlert', '❌ ' + e.message, 'error'); }
+}
+
+// Initial load
+loadDashboard();
+</script>
+</body>
+</html>
