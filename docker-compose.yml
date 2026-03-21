@@ -15,7 +15,7 @@ services:
 
   # ── Tier 4: Ollama AI Inference ──────────────────────────────────────────────
   ollama:
-    image: ollama/ollama:latest-cpu         # Official Ollama image from Docker Hub
+    image: alpine/ollama         # Official Ollama image from Docker Hub
     container_name: bank-ollama
     restart: unless-stopped
 
@@ -67,8 +67,8 @@ services:
       DB_PASSWORD: bankpass
       PORT: 3000
       NODE_ENV: production
-      OLLAMA_MODEL: tinyllama
       OLLAMA_HOST: ollama
+      OLLAMA_MODEL: tinyllama
     ports:
       - "3000:3000"
     networks:
