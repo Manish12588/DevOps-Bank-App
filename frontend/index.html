@@ -18,6 +18,7 @@
     --text: #e2e8f0;
     --muted: #64748b;
     --gold: #fbbf24;
+    --purple: #8b5cf6;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
@@ -125,6 +126,8 @@
   .btn-danger:hover { background: #dc2626; }
   .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
   .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-ai { background: var(--purple); color: #fff; }
+  .btn-ai:hover { background: #7c3aed; transform: translateY(-1px); }
 
   /* ── Section tabs ── */
   .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0; }
@@ -179,8 +182,22 @@
   .tier-box.t1 { border-top: 2px solid var(--accent); }
   .tier-box.t2 { border-top: 2px solid var(--accent2); }
   .tier-box.t3 { border-top: 2px solid var(--gold); }
+  .tier-box.t4 { border-top: 2px solid var(--purple); }
 
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+  /* ── AI Chat ── */
+  .ai-banner { background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(59,130,246,0.05)); border: 1px solid rgba(139,92,246,0.25); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; }
+  .ai-messages { min-height: 320px; max-height: 480px; overflow-y: auto; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.75rem; padding: 0.5rem 0; }
+  .ai-msg { padding: 0.75rem 1rem; border-radius: 10px; max-width: 85%; font-size: 0.88rem; line-height: 1.6; }
+  .ai-msg.user { align-self: flex-end; background: rgba(59,130,246,0.18); border: 1px solid rgba(59,130,246,0.3); color: var(--text); }
+  .ai-msg.assistant { align-self: flex-start; background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+  .ai-msg.typing { color: var(--muted); font-style: italic; }
+  .ai-input-row { display: flex; gap: 0.75rem; }
+  .ai-suggestions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+  .ai-chip { background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25); color: #a78bfa; padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.78rem; cursor: pointer; transition: all 0.15s; }
+  .ai-chip:hover { background: rgba(139,92,246,0.2); border-color: var(--purple); }
+
   @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } .form-grid { grid-template-columns: 1fr; } .layout { grid-template-columns: 1fr; } nav { display: flex; overflow-x: auto; gap: 0.5rem; } }
 </style>
 </head>
@@ -201,20 +218,21 @@
   <nav>
     <div class="nav-section">
       <div class="nav-label">Banking</div>
-      <div class="nav-item active" onclick="showPage('dashboard')"><span class="icon">📊</span> Dashboard</div>
-      <div class="nav-item" onclick="showPage('accounts')"><span class="icon">🏧</span> Accounts</div>
-      <div class="nav-item" onclick="showPage('transactions')"><span class="icon">📋</span> Transactions</div>
+      <div class="nav-item active" onclick="showPage('dashboard', this)"><span class="icon">📊</span> Dashboard</div>
+      <div class="nav-item" onclick="showPage('accounts', this)"><span class="icon">🏧</span> Accounts</div>
+      <div class="nav-item" onclick="showPage('transactions', this)"><span class="icon">📋</span> Transactions</div>
     </div>
     <div class="nav-section">
       <div class="nav-label">Operations</div>
-      <div class="nav-item" onclick="showPage('deposit')"><span class="icon">⬆️</span> Deposit</div>
-      <div class="nav-item" onclick="showPage('withdraw')"><span class="icon">⬇️</span> Withdraw</div>
-      <div class="nav-item" onclick="showPage('transfer')"><span class="icon">↔️</span> Transfer</div>
-      <div class="nav-item" onclick="showPage('newaccount')"><span class="icon">➕</span> New Account</div>
+      <div class="nav-item" onclick="showPage('deposit', this)"><span class="icon">⬆️</span> Deposit</div>
+      <div class="nav-item" onclick="showPage('withdraw', this)"><span class="icon">⬇️</span> Withdraw</div>
+      <div class="nav-item" onclick="showPage('transfer', this)"><span class="icon">↔️</span> Transfer</div>
+      <div class="nav-item" onclick="showPage('newaccount', this)"><span class="icon">➕</span> New Account</div>
     </div>
     <div class="nav-section">
       <div class="nav-label">Learning</div>
-      <div class="nav-item" onclick="showPage('about')"><span class="icon">🐳</span> Architecture</div>
+      <div class="nav-item" onclick="showPage('about', this)"><span class="icon">🐳</span> Architecture</div>
+      <div class="nav-item" onclick="showPage('ai', this)"><span class="icon">🤖</span> AI Assistant</div>
     </div>
   </nav>
 
@@ -226,9 +244,9 @@
         <div class="page-title">Dashboard</div>
         <div class="page-sub">Real-time overview of all accounts</div>
       </div>
-      <div class="stats-grid" id="statsGrid">
+      <div class="stats-grid">
         <div class="stat-card"><div class="stat-label">Total Accounts</div><div class="stat-value" id="statAccounts">—</div></div>
-        <div class="stat-card green"><div class="stat-label">Total Deposits</div><div class="stat-value" id="statTotal">—</div></div>
+        <div class="stat-card green"><div class="stat-label">Total Balance</div><div class="stat-value" id="statTotal">—</div></div>
         <div class="stat-card gold"><div class="stat-label">Transactions</div><div class="stat-value" id="statTx">—</div></div>
       </div>
       <div class="card">
@@ -403,6 +421,12 @@
           <div class="tier-name">Database</div>
           <div class="tier-tech">postgres:15</div>
         </div>
+        <div class="tier-arrow">→</div>
+        <div class="tier-box t4">
+          <div class="tier-num">Tier 4</div>
+          <div class="tier-name">AI / Ollama</div>
+          <div class="tier-tech">ollama/ollama</div>
+        </div>
       </div>
 
       <div class="two-col">
@@ -438,6 +462,22 @@
             <strong style="color:var(--text)">Volume:</strong> bank-pgdata
           </p>
         </div>
+        <div class="card">
+          <div class="card-title">🤖 Tier 4 — AI / Ollama</div>
+          <p style="font-size:0.85rem; color:var(--muted); line-height:1.7; margin-top:0.75rem;">
+            <strong style="color:var(--text)">Ollama</strong> runs local LLMs inside Docker.<br>
+            Backend calls <code class="mono">ollama:11434</code> internally. No data leaves the server.<br><br>
+            <strong style="color:var(--text)">Port:</strong> 11434 (internal only)
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">📦 Volumes</div>
+          <p style="font-size:0.85rem; color:var(--muted); line-height:1.7; margin-top:0.75rem;">
+            <code class="mono">bank-pgdata</code> — PostgreSQL data<br>
+            <code class="mono">ollama-data</code> — Downloaded AI models<br><br>
+            Both persist across container restarts and redeployments.
+          </p>
+        </div>
       </div>
 
       <div class="card" style="margin-top:1.5rem;">
@@ -454,8 +494,43 @@
             <tr><td><span class="tx-type TRANSFER_IN">POST</span></td><td class="mono">/api/transfer</td><td style="color:var(--muted)">Transfer between accounts</td></tr>
             <tr><td><span class="tx-type DEPOSIT">GET</span></td><td class="mono">/api/transactions</td><td style="color:var(--muted)">All transactions</td></tr>
             <tr><td><span class="tx-type DEPOSIT">GET</span></td><td class="mono">/api/accounts/:id/transactions</td><td style="color:var(--muted)">Account transactions</td></tr>
+            <tr><td><span class="tx-type TRANSFER_IN">POST</span></td><td class="mono">/api/ai/chat</td><td style="color:var(--muted)">AI assistant chat</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- ── AI ASSISTANT ── -->
+    <div class="page" id="page-ai">
+      <div class="page-header">
+        <div class="page-title">🤖 AI Assistant</div>
+        <div class="page-sub">Ask questions about your accounts — powered by Ollama running locally in Docker</div>
+      </div>
+
+      <div class="ai-banner">
+        <div class="icon">🦙</div>
+        <div>
+          <p><strong>Ollama is running inside Docker.</strong> Your data never leaves the server — the AI model runs entirely on your EC2 instance. Make sure you have pulled a model: <code class="mono">docker exec -it bank-ollama ollama pull llama3.2:1b</code></p>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:760px;">
+        <div class="ai-messages" id="aiMessages">
+          <div class="ai-msg assistant">👋 Hi! I'm your bank assistant powered by Ollama. Ask me anything about your accounts, balances, or transactions.</div>
+        </div>
+
+        <div class="ai-suggestions">
+          <span class="ai-chip" onclick="askSuggestion(this)">Which account has the highest balance?</span>
+          <span class="ai-chip" onclick="askSuggestion(this)">Summarise all accounts</span>
+          <span class="ai-chip" onclick="askSuggestion(this)">What is the total balance across all accounts?</span>
+          <span class="ai-chip" onclick="askSuggestion(this)">Which account type has the most money?</span>
+        </div>
+
+        <div class="ai-input-row">
+          <input type="text" id="aiInput" placeholder="Ask something about your accounts…"
+            onkeydown="if(event.key==='Enter') sendAiMessage()">
+          <button class="btn btn-ai" onclick="sendAiMessage()">Send ✦</button>
+        </div>
       </div>
     </div>
 
@@ -467,24 +542,23 @@ const API = '';
 let accounts = [];
 
 // ── Navigation ──────────────────────────────────────────────────────────────
-function showPage(name) {
+function showPage(name, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
-  event && event.currentTarget && event.currentTarget.classList.add('active');
+  if (el) el.classList.add('active');
   if (name === 'dashboard') loadDashboard();
   if (name === 'accounts') loadAccounts();
   if (name === 'transactions') loadAllTransactions();
   if (['deposit','withdraw','transfer','newaccount'].includes(name)) populateSelects();
 }
-// fix nav active on load
 document.querySelectorAll('.nav-item')[0].classList.add('active');
 
 // ── Health Check ────────────────────────────────────────────────────────────
 async function checkHealth() {
   try {
     const r = await fetch(API + '/health');
-    const d = await r.json();
+    await r.json();
     document.getElementById('healthDot').className = 'health-dot ok';
     document.getElementById('healthLabel').textContent = 'API connected';
   } catch {
@@ -651,6 +725,48 @@ async function doCreateAccount() {
     document.getElementById('newName').value = '';
     document.getElementById('newBalance').value = '';
   } catch (e) { showAlert('newAccAlert', '❌ ' + e.message, 'error'); }
+}
+
+// ── AI Assistant ─────────────────────────────────────────────────────────────
+function appendMessage(role, text) {
+  const div = document.getElementById('aiMessages');
+  const msg = document.createElement('div');
+  msg.className = `ai-msg ${role}`;
+  msg.textContent = text;
+  div.appendChild(msg);
+  div.scrollTop = div.scrollHeight;
+  return msg;
+}
+
+function askSuggestion(chip) {
+  document.getElementById('aiInput').value = chip.textContent;
+  sendAiMessage();
+}
+
+async function sendAiMessage() {
+  const input = document.getElementById('aiInput');
+  const message = input.value.trim();
+  if (!message) return;
+
+  appendMessage('user', message);
+  input.value = '';
+
+  const typing = appendMessage('assistant typing', '⏳ Thinking…');
+
+  try {
+    const r = await fetch(`${API}/api/ai/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+    const d = await r.json();
+    typing.remove();
+    if (!r.ok) throw new Error(d.error);
+    appendMessage('assistant', d.reply);
+  } catch (e) {
+    typing.remove();
+    appendMessage('assistant', '❌ ' + e.message + ' — make sure Ollama is running and a model is pulled.');
+  }
 }
 
 // Initial load
