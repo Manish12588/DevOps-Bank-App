@@ -25,7 +25,9 @@ jobs:
                  echo "Installing required packages & folders"
                  sudo apt-get update && sudo apt-get install docker.io docker-compose-v2 -y
                  sudo usermod -aG docker $USER
-                 mkdir -p devops-bank-app
+                 mkdir -p ~/devops-bank-app/frontend
+                 mkdir -p ~/devops-bank-app/backend
+                 mkdir -p ~/devops-bank-app/database
 
             - name: Copy the docker-compose file
               uses: appleboy/scp-action@v1
@@ -33,7 +35,7 @@ jobs:
                 host: ${{ secrets.EC2_SSH_HOST }}
                 username: ${{ secrets.EC2_SSH_USER }}
                 key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-                source: docker-compose.yml
+                source: "docker-compose.yml,frontend/,backend/,database/"
                 target: ~/devops-bank-app
                 
             - name: SSH to Prod server & run the app
@@ -44,7 +46,13 @@ jobs:
                 key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
                 script: |
                  echo "Running App"
-                 export DOCKERHUB_USER=${{ secrets.DOCKERHUB_USER }}
-                 export DOCKER_TAG=${{ github.sha }}
-                 echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login --username ${{ secrets.DOCKERHUB_USER }} --password-stdin
-                 cd ~/devops-bank-app && docker compose down && docker compose up -d --build --force-recreate --pull always
+                 cd ~/devops-bank-app
+                 cat > .env << 'EOF'
+                 DOCKERHUB_USER=${{ secrets.DOCKERHUB_USERNAME }}
+                 DOCKER_TAG=${{ github.sha }}
+                 EOF
+                 cat .env
+                 echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login --username ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+                 docker compose pull
+                 docker compose down
+                 docker compose up -d --force-recreate
