@@ -15,5 +15,11 @@
   },
   "devDependencies": {
     "eslint": "^9.0.0"
+  },
+  "overrides": {
+    "cross-spawn": "^7.0.5",
+    "glob": "^11.1.0",
+    "minimatch": "^9.0.7",
+    "tar": "^7.5.11"
   }
 }
