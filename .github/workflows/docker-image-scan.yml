@@ -1,4 +1,4 @@
-# Uses Trivy image scanner for CVEs - single image
+# uses Trivy image scanner for CVEs - Docker Image
 name: Image Scanner
 
 on:
@@ -18,26 +18,58 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Pull App Image from Docker Hub
-        run: docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app:${{ github.sha }}
+      # ── Backend ──────────────────────────────────────────────────────────────
+      - name: Pull Backend Image from Docker Hub
+        run: docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-backend:${{ github.sha }}
 
-      - name: Trivy Scanner — App Image
+      - name: Trivy Scanner — Backend
         uses: aquasecurity/trivy-action@0.35.0
         with:
-          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app:${{ github.sha }}
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-backend:${{ github.sha }}
           severity: 'CRITICAL,HIGH'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
           trivyignores: .trivyignore
 
-      - name: Trivy SARIF — App Image
+      - name: Trivy SARIF — Backend
         if: always()
         uses: aquasecurity/trivy-action@0.35.0
         with:
-          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app:${{ github.sha }}
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-backend:${{ github.sha }}
           format: 'sarif'
-          output: 'trivy-results.sarif'
+          output: 'trivy-results-backend.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
           exit-code: '0'
+
+      # ── Frontend ─────────────────────────────────────────────────────────────
+      - name: Pull Frontend Image from Docker Hub
+        run: docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-frontend:${{ github.sha }}
+
+      - name: Trivy Scanner — Frontend
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-frontend:${{ github.sha }}
+          severity: 'CRITICAL,HIGH'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+
+      - name: Trivy SARIF — Frontend
+        if: always()
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-frontend:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results-frontend.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
+
+      #- name: Upload SARIF to GitHub Security tab
+      #  uses: github/codeql-action/upload-sarif@v3
+      #  if: always()
+      #  with:
+      #    sarif_file: 'trivy-results-backend.sarif'
