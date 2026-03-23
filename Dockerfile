@@ -16,6 +16,7 @@ RUN npm install --omit=dev
 FROM node:20-slim
 
 # Install Nginx
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends nginx \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
