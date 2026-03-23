@@ -16,15 +16,22 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # ── Single image built from repo root Dockerfile ──────────────────────────
-      # The same image runs as frontend (Nginx) OR backend (Node.js)
-      # based on the ROLE env var set in docker-compose.yml
-      - name: Build and Push Single App Image
+      # ── Backend ──────────────────────────────────────────────────────────────
+      - name: Build and Push Backend Image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./backend
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-backend:${{ github.sha }}
+
+      # ── Frontend ─────────────────────────────────────────────────────────────
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-frontend:${{ github.sha }}
