@@ -48,6 +48,7 @@ jobs:
                  cat > .env << 'EOF'
                  DOCKERHUB_USER=${{ secrets.DOCKERHUB_USERNAME }}
                  DOCKER_TAG=${{ github.sha }}
+                 JWT_SECRET=${{ secrets.JWT_SECRET }}
                  EOF
                  cat .env
                  echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login --username ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
