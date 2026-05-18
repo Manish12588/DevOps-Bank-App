@@ -1,5 +1,5 @@
 # ── Stage 1: Install dependencies ──────────────────────────────────────────────
-FROM node:20-slim AS deps
+FROM node:20-alpine AS deps
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 # ── Stage 2: Final runtime image ────────────────────────────────────────────────
-FROM node:20-slim
+FROM node:20-alpine
 
 WORKDIR /app
 
