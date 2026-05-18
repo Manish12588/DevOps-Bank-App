@@ -1,3 +1,24 @@
-node_modules/
-.env
-*.log
+# ── Terraform gitignore ───────────────────────────────────────────────────────
+
+# Variable values — contains secrets
+terraform.tfvars
+*.auto.tfvars
+
+# Local state — never commit, use S3 backend instead
+terraform.tfstate
+terraform.tfstate.backup
+.terraform.tfstate.lock.info
+
+# Terraform working directory
+.terraform/
+.terraform.lock.hcl
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

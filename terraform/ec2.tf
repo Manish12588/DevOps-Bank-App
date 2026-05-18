@@ -1,137 +1,52 @@
-# Region
-provider "aws" {
-  region = var.aws_region
-}
+# ── EC2 Instance ──────────────────────────────────────────────────────────────
+resource "aws_instance" "devops_bank_server" {
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.bank_app.id]
+  key_name               = var.key_pair_name
 
-# Key Value pair
-resource "aws_key_pair" "my_key_pair" {
-  key_name   = "terra-automate-key"
-  public_key = file("terra-automate-key.pub")
-}
-
-# VPC Default
-resource "aws_default_vpc" "default" {
-}
-
-# Security Group 
-resource "aws_security_group" "my_security_group" {
-
-  name        = "terra-security-group"
-  vpc_id      = aws_default_vpc.default.id # interpolation
-  description = "this is Inbound and outbound rules for your instance Security group"
-
-}
-
-# Inbound & Outbount port rules
-resource "aws_vpc_security_group_ingress_rule" "allow_http" {
-  security_group_id = aws_security_group.my_security_group.id
-  cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 80
-  ip_protocol       = "tcp"
-  to_port           = 80
-}
-
-resource "aws_vpc_security_group_ingress_rule" "allow_ssh" {
-  security_group_id = aws_security_group.my_security_group.id
-  cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 22
-  ip_protocol       = "tcp"
-  to_port           = 22
-}
-
-
-resource "aws_vpc_security_group_egress_rule" "allow_all_traffic" {
-  security_group_id = aws_security_group.my_security_group.id
-  cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "-1" # semantically equivalent to all ports
-}
-
-
-# EC2 instance
-resource "aws_instance" "my_instance" {
-
-  for_each               = var.instances                             #Total given 4 instances
-  ami                    = each.value.ami                            # Get the AMI value of each instances
-  instance_type          = each.value.instance_type                  # Instance Type
-  key_name               = aws_key_pair.my_key_pair.key_name         # Key pair
-  vpc_security_group_ids = [aws_security_group.my_security_group.id] # VPC & Security Group
-
-  # root storage (EBS)
+  # Root volume — 20GB is enough for Docker images
   root_block_device {
-    volume_size = 10
-    volume_type = "gp3"
+    volume_size           = 20
+    volume_type           = "gp3"
+    delete_on_termination = true
   }
 
-  tags = {
-    Name     = each.key
-    OSFamily = each.value.os_family
-  }
-}
+  # Bootstrap script — runs once when EC2 first starts
+  # Installs Docker, creates app folder, writes .env file
+  user_data = <<-EOF
+    #!/bin/bash
+    set -e
 
-# ------ Generate the Hosts file -----#
-resource "local_file" "ansible_inventory" {
-  content = templatefile("${path.module}/inventory.tpl", {
-    instances = {
-      for name, inst in aws_instance.my_instance : name => {
-        public_ip = inst.public_ip
-        user      = var.instances[name].user
-        os_family = var.instances[name].os_family
-      }
-    }
-    ssh_key_path = "${path.module}/terra-automate-key"
-  })
+    # Update and install Docker
+    apt-get update -y
+    apt-get install -y docker.io docker-compose-v2
 
-  filename        = "${path.module}/inventories/dev/hosts.ini"
-  file_permission = "0644"
-}
+    # Enable and start Docker
+    systemctl enable docker
+    systemctl start docker
 
-# ------- Install Ansible on Controler node -----#
-resource "null_resource" "setup_controller" {
-  depends_on = [local_file.ansible_inventory]
+    # Add ubuntu user to docker group (no sudo needed)
+    usermod -aG docker ubuntu
 
-  #Create keys directory on controller
-  provisioner "remote-exec" {
-    inline = [
-      "mkdir -p /home/ubuntu/keys"
-    ]
+    # Create app directory
+    mkdir -p /home/ubuntu/devops-bank-app/database
+    cd /home/ubuntu/devops-bank-app
 
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = file("${path.module}/terra-automate-key")
-      host        = aws_instance.my_instance["control-node-ubuntu"].public_ip
-    }
-  }
+    # Write environment file
+    cat > .env << 'ENVEOF'
+    DOCKERHUB_USER=${var.dockerhub_username}
+    DOCKER_TAG=latest
+    JWT_SECRET=${var.jwt_secret}
+    DB_PASSWORD=${var.db_password}
+    ENVEOF
 
-  #Copy Private key to controler node
-  provisioner "file" {
-    source      = "${path.module}/terra-automate-key"
-    destination = "/home/ubuntu/keys/terra-automate-key"
+    # Fix ownership
+    chown -R ubuntu:ubuntu /home/ubuntu/devops-bank-app
 
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = file("${path.module}/terra-automate-key")
-      host        = aws_instance.my_instance["control-node-ubuntu"].public_ip
-    }
-  }
+    echo "Bootstrap complete" > /tmp/bootstrap-done.txt
+  EOF
 
-  #Install ansible on controler node
-  provisioner "remote-exec" {
-    inline = [
-      "chmod 400 /home/ubuntu/keys/terra-automate-key",
-      "sudo apt-add-repository ppa:ansible/ansible -y",
-      "sudo apt update -y ",
-      "sudo apt install ansible -y",
-      "ansible --version"
-    ]
-
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = file("${path.module}/terra-automate-key")
-      host        = aws_instance.my_instance["control-node-ubuntu"].public_ip
-    }
-  }
-
+  tags = { Name = "devops-bank-server" }
 }

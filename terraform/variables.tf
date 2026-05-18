@@ -1,44 +1,74 @@
 variable "aws_region" {
-  description = "This varibles holds the value of AWS region"
+  description = "AWS region to deploy into"
+  type        = string
   default     = "us-west-2"
 }
 
-variable "instances" {
-  description = "Map of instance name to AMI IDs, SSH User, and OS family."
-
-  #Created a map to tell the type of all variables
-  type = map(object({
-    ami           = string
-    user          = string
-    os_family     = string
-    instance_type = string
-  }))
-
-  default = {
-    "control-node-ubuntu" = {
-      ami           = "ami-05d2d839d4f73aafb" #Ubuntu Server 24.04 LTS region: ap-south-1 
-      user          = "ubuntu"
-      os_family     = ""
-      instance_type = "t3.micro"
-    }
-    "worker-ubuntu" = {
-      ami           = "ami-05d2d839d4f73aafb" #Ubuntu Server 24.04 LTS region: ap-south-1 
-      user          = "ubuntu"
-      os_family     = ""
-      instance_type = "t3.micro"
-    }
-    "worker-redhat" = {
-      ami           = "ami-03793655b06c6e29a" #Red Hat Enterprise Linux version 10 (HVM) region: ap-south-1 
-      user          = "ec2-user"
-      os_family     = ""
-      instance_type = "t3.micro"
-    }
-    "worker-amazon" = {
-      ami           = "ami-045443a70fafb8bbc" # Amazon Linux 2023 (kernel-6.1), region: ap-south-1 
-      user          = "ec2-user"
-      os_family     = ""
-      instance_type = "t3.micro"
-    }
-  }
-
+variable "vpc_cidr" {
+  description = "CIDR block for the VPC"
+  type        = string
+  default     = "10.0.0.0/16"
 }
+
+variable "public_subnet_cidr" {
+  description = "CIDR block for the public subnet"
+  type        = string
+  default     = "10.0.1.0/24"
+}
+
+variable "instance_type" {
+  description = "EC2 instance type"
+  type        = string
+  default     = "t3.micro"
+}
+
+variable "key_pair_name" {
+  description = "AWS key pair name for SSH access"
+  type        = string
+}
+
+variable "my_ip" {
+  description = "Your IP address for SSH access — run: curl ifconfig.me"
+  type        = string
+}
+
+variable "dockerhub_username" {
+  description = "DockerHub username to pull images from"
+  type        = string
+}
+
+variable "dockerhub_token" {
+  description = "DockerHub access token"
+  type        = string
+  sensitive   = true
+}
+
+variable "jwt_secret" {
+  description = "JWT secret for backend authentication"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password" {
+  description = "PostgreSQL database password"
+  type        = string
+  sensitive   = true
+  default     = "bankpass"
+}
+
+
+/**
+--> Three parts of a variable:
+
+1. description — what it's for (always write this)
+2. type — string, number, bool, list, map
+3. default — optional fallback if not provided
+
+--> Key things to remember:
+
+1. Variables with no default are required — Terraform will prompt if not provided
+2. Never put actual secret values here — only declare the variable
+3. Actual values go in terraform.tfvars
+4. Think of variables.tf as the public API of your config — what can be customized
+
+*/
