@@ -1,6 +1,8 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(cors());
@@ -14,7 +16,24 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD || 'bankpass',
 });
 
-// Health check
+const JWT_SECRET = process.env.JWT_SECRET || 'devops-bank-secret-change-in-production';
+const JWT_EXPIRES = '24h';
+
+// ── JWT Auth Middleware ───────────────────────────────────────────────────────
+function authRequired(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Access denied. Please log in.' });
+
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch (err) {
+    return res.status(403).json({ error: 'Invalid or expired token. Please log in again.' });
+  }
+}
+
+// ── Health check (public) ─────────────────────────────────────────────────────
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -24,21 +43,103 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Get all accounts
+// ── Register ──────────────────────────────────────────────────────────────────
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password, full_name } = req.body;
+
+    if (!email || !password || !full_name) {
+      return res.status(400).json({ error: 'email, password, and full_name are required' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'An account with this email already exists' });
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      'INSERT INTO users (email, password_hash, full_name) VALUES ($1, $2, $3) RETURNING id, email, full_name, created_at',
+      [email.toLowerCase(), password_hash, full_name.trim()]
+    );
+
+    const user = result.rows[0];
+    const token = jwt.sign({ id: user.id, email: user.email, full_name: user.full_name }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
+
+    res.status(201).json({ token, user: { id: user.id, email: user.email, full_name: user.full_name } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Login ─────────────────────────────────────────────────────────────────────
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'email and password are required' });
+    }
+
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const user = result.rows[0];
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email, full_name: user.full_name }, JWT_SECRET, { expiresIn: JWT_EXPIRES });
+
+    res.json({ token, user: { id: user.id, email: user.email, full_name: user.full_name } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Get current user (protected) ──────────────────────────────────────────────
+app.get('/api/auth/me', authRequired, async (req, res) => {
+  const result = await pool.query('SELECT id, email, full_name, created_at FROM users WHERE id = $1', [req.user.id]);
+  res.json(result.rows[0]);
+});
+
+// ── All routes below this point require auth ──────────────────────────────────
+app.use('/api/accounts', authRequired);
+app.use('/api/transfer', authRequired);
+app.use('/api/transactions', authRequired);
+app.use('/api/ai', authRequired);
+
+// ── Get all accounts (scoped to logged-in user) ───────────────────────────────
 app.get('/api/accounts', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM accounts ORDER BY id');
+    const result = await pool.query(
+      'SELECT * FROM accounts WHERE user_id = $1 ORDER BY id',
+      [req.user.id]
+    );
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Get single account
+// ── Get single account (ownership check) ─────────────────────────────────────
 app.get('/api/accounts/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('SELECT * FROM accounts WHERE id = $1', [id]);
+    const result = await pool.query(
+      'SELECT * FROM accounts WHERE id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Account not found' });
     res.json(result.rows[0]);
   } catch (err) {
@@ -46,7 +147,7 @@ app.get('/api/accounts/:id', async (req, res) => {
   }
 });
 
-// Create account
+// ── Create account ────────────────────────────────────────────────────────────
 app.post('/api/accounts', async (req, res) => {
   try {
     const { owner_name, account_type, initial_balance } = req.body;
@@ -55,8 +156,8 @@ app.post('/api/accounts', async (req, res) => {
     }
     const balance = parseFloat(initial_balance) || 0;
     const result = await pool.query(
-      'INSERT INTO accounts (owner_name, account_type, balance) VALUES ($1, $2, $3) RETURNING *',
-      [owner_name, account_type, balance]
+      'INSERT INTO accounts (user_id, owner_name, account_type, balance) VALUES ($1, $2, $3, $4) RETURNING *',
+      [req.user.id, owner_name, account_type, balance]
     );
     if (balance > 0) {
       await pool.query(
@@ -70,7 +171,7 @@ app.post('/api/accounts', async (req, res) => {
   }
 });
 
-// Deposit
+// ── Deposit (ownership check) ─────────────────────────────────────────────────
 app.post('/api/accounts/:id/deposit', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -80,7 +181,10 @@ app.post('/api/accounts/:id/deposit', async (req, res) => {
     if (!amt || amt <= 0) return res.status(400).json({ error: 'Amount must be positive' });
 
     await client.query('BEGIN');
-    const acc = await client.query('SELECT * FROM accounts WHERE id = $1 FOR UPDATE', [id]);
+    const acc = await client.query(
+      'SELECT * FROM accounts WHERE id = $1 AND user_id = $2 FOR UPDATE',
+      [id, req.user.id]
+    );
     if (acc.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Account not found' }); }
 
     const newBalance = parseFloat(acc.rows[0].balance) + amt;
@@ -99,7 +203,7 @@ app.post('/api/accounts/:id/deposit', async (req, res) => {
   }
 });
 
-// Withdraw
+// ── Withdraw (ownership check) ────────────────────────────────────────────────
 app.post('/api/accounts/:id/withdraw', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -109,7 +213,10 @@ app.post('/api/accounts/:id/withdraw', async (req, res) => {
     if (!amt || amt <= 0) return res.status(400).json({ error: 'Amount must be positive' });
 
     await client.query('BEGIN');
-    const acc = await client.query('SELECT * FROM accounts WHERE id = $1 FOR UPDATE', [id]);
+    const acc = await client.query(
+      'SELECT * FROM accounts WHERE id = $1 AND user_id = $2 FOR UPDATE',
+      [id, req.user.id]
+    );
     if (acc.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Account not found' }); }
     if (parseFloat(acc.rows[0].balance) < amt) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Insufficient funds' }); }
 
@@ -129,7 +236,7 @@ app.post('/api/accounts/:id/withdraw', async (req, res) => {
   }
 });
 
-// Transfer
+// ── Transfer (ownership check on source account) ──────────────────────────────
 app.post('/api/transfer', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -140,15 +247,18 @@ app.post('/api/transfer', async (req, res) => {
 
     await client.query('BEGIN');
     const [from, to] = await Promise.all([
-      client.query('SELECT * FROM accounts WHERE id = $1 FOR UPDATE', [from_account_id]),
+      // Must own the source account
+      client.query('SELECT * FROM accounts WHERE id = $1 AND user_id = $2 FOR UPDATE', [from_account_id, req.user.id]),
+      // Destination can be any account (allows transfers between users)
       client.query('SELECT * FROM accounts WHERE id = $1 FOR UPDATE', [to_account_id])
     ]);
-    if (from.rows.length === 0 || to.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Account not found' }); }
+    if (from.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Source account not found or not yours' }); }
+    if (to.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Destination account not found' }); }
     if (parseFloat(from.rows[0].balance) < amt) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Insufficient funds' }); }
 
     const fromNew = parseFloat(from.rows[0].balance) - amt;
     const toNew = parseFloat(to.rows[0].balance) + amt;
-    const desc = description || 'Transfer to/from account';
+    const desc = description || 'Transfer';
 
     await client.query('UPDATE accounts SET balance = $1, updated_at = NOW() WHERE id = $2', [fromNew, from_account_id]);
     await client.query('UPDATE accounts SET balance = $1, updated_at = NOW() WHERE id = $2', [toNew, to_account_id]);
@@ -164,13 +274,16 @@ app.post('/api/transfer', async (req, res) => {
   }
 });
 
-// Get transactions for account
+// ── Get transactions for account (ownership check) ────────────────────────────
 app.get('/api/accounts/:id/transactions', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      'SELECT * FROM transactions WHERE account_id = $1 ORDER BY created_at DESC LIMIT 50',
-      [id]
+      `SELECT t.* FROM transactions t
+       JOIN accounts a ON t.account_id = a.id
+       WHERE t.account_id = $1 AND a.user_id = $2
+       ORDER BY t.created_at DESC LIMIT 50`,
+      [id, req.user.id]
     );
     res.json(result.rows);
   } catch (err) {
@@ -178,13 +291,15 @@ app.get('/api/accounts/:id/transactions', async (req, res) => {
   }
 });
 
-// Get all transactions
+// ── Get all transactions (scoped to logged-in user) ───────────────────────────
 app.get('/api/transactions', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT t.*, a.owner_name FROM transactions t 
-       JOIN accounts a ON t.account_id = a.id 
-       ORDER BY t.created_at DESC LIMIT 100`
+      `SELECT t.*, a.owner_name FROM transactions t
+       JOIN accounts a ON t.account_id = a.id
+       WHERE a.user_id = $1
+       ORDER BY t.created_at DESC LIMIT 100`,
+      [req.user.id]
     );
     res.json(result.rows);
   } catch (err) {
@@ -192,7 +307,7 @@ app.get('/api/transactions', async (req, res) => {
   }
 });
 
-// ── AI: Chat with the bank assistant ─────────────────────────────────────────
+// ── AI Chat (scoped to logged-in user's accounts only) ────────────────────────
 const OLLAMA_URL = `http://${process.env.OLLAMA_HOST || 'ollama'}:11434`;
 
 app.post('/api/ai/chat', async (req, res) => {
@@ -200,8 +315,10 @@ app.post('/api/ai/chat', async (req, res) => {
   if (!message) return res.status(400).json({ error: 'message is required' });
 
   try {
-    // Pull account context so the AI knows actual balances
-    const accounts = await pool.query('SELECT owner_name, account_type, balance FROM accounts');
+    const accounts = await pool.query(
+      'SELECT owner_name, account_type, balance FROM accounts WHERE user_id = $1',
+      [req.user.id]
+    );
     const context = accounts.rows
       .map(a => `${a.owner_name}: ${a.account_type} — €${a.balance}`)
       .join('\n');
@@ -209,7 +326,7 @@ app.post('/api/ai/chat', async (req, res) => {
     const response = await fetch(`${OLLAMA_URL}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(120000),   // ← 2 min timeout for slow CPU inference
+      signal: AbortSignal.timeout(120000),
       body: JSON.stringify({
         model: process.env.OLLAMA_MODEL || 'tinyllama',
         prompt: `You are a helpful bank assistant. Answer concisely in 2-3 sentences max.
@@ -219,10 +336,7 @@ ${context}
 Customer question: ${message}
 Answer:`,
         stream: false,
-        options: {
-          num_predict: 150,    // ← limit response length for faster replies
-          temperature: 0.7,
-        }
+        options: { num_predict: 150, temperature: 0.7 }
       })
     });
 

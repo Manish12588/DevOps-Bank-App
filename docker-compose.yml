@@ -56,6 +56,9 @@ services:
 
   # ── Tier 2: Backend API ──────────────────────────────────────────────────────
   backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     image: ${DOCKERHUB_USER}/devops-bank-app-backend:${DOCKER_TAG}   # ← pull from DockerHub
     container_name: bank-backend
     restart: unless-stopped
@@ -69,6 +72,7 @@ services:
       NODE_ENV: production
       OLLAMA_HOST: ollama
       OLLAMA_MODEL: tinyllama
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       - "3000:3000"
     networks:
@@ -87,6 +91,9 @@ services:
 
   # ── Tier 1: Frontend ─────────────────────────────────────────────────────────
   frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     image: ${DOCKERHUB_USER}/devops-bank-app-frontend:${DOCKER_TAG}  # ← pull from DockerHub
     container_name: bank-frontend
     restart: unless-stopped

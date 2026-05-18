@@ -11,7 +11,7 @@ RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy the static HTML/CSS/JS files into the nginx web root
-COPY index.html /usr/share/nginx/html/
+COPY *.html /usr/share/nginx/html/
 
 # Expose HTTP port
 EXPOSE 80
