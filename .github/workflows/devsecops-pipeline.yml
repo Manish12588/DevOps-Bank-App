@@ -3,22 +3,34 @@ name: DevSecOps End To End Pipeline
 on: 
     push:
         branches: [main]
+        paths:
+          - 'backend/**'
+          - 'frontend/**'
+          - 'docker-compose.yml'
     workflow_dispatch:
-      
-
+    workflow_run:
+        workflows: ["Infrastructure Pipeline"]
+        types:
+          - completed
+        branches:
+          - main
 jobs:
     # CI (Continous Integration with Security Scanning)
     code-quality:
+        if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
         uses: ./.github/workflows/code-quality-check.yml
 
     secrets-scan:
+        if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
         uses: ./.github/workflows/secrets-scan.yml
         secrets: inherit
     
     dependency-scan:
+        if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
         uses: ./.github/workflows/dependency-scan.yml
     
     docker-scan:
+        if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
         uses: ./.github/workflows/docker-lint.yml
 
 
