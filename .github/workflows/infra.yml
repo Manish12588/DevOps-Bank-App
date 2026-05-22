@@ -90,7 +90,7 @@ jobs:
         run: |
           gh secret set EC2_SSH_HOST --body "${{ steps.get_ip.outputs.ec2_ip }}"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
 
       # ── Wait for EC2 to be ready ──────────────────────────────────────────────
       - name: Wait for EC2 SSH to be available
