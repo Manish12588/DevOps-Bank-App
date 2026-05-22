@@ -22,10 +22,10 @@ variable "instance_type" {
   default     = "t3.micro"
 }
 
-variable "key_pair_name" {
-  description = "AWS key pair name for SSH access"
-  type        = string
-}
+# variable "key_pair_name" {
+#   description = "AWS key pair name for SSH access"
+#   type        = string
+# }
 
 variable "my_ip" {
   description = "Your IP address for SSH access — run: curl ifconfig.me"

@@ -25,7 +25,7 @@ output "api_url" {
 
 output "ssh_command" {
   description = "SSH command to connect to the server"
-  value       = "ssh -i ~/.ssh/${var.key_pair_name}.pem ubuntu@${aws_instance.devops_bank_server.public_ip}"
+  value       = "ssh -i ~/.ssh/${aws_key_pair.my_key_pair.key_name}.pem ubuntu@${aws_instance.devops_bank_server.public_ip}"
 }
 
 output "vpc_id" {

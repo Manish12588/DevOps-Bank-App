@@ -1,24 +1,22 @@
-# ── Terraform gitignore ───────────────────────────────────────────────────────
-
-# Variable values — contains secrets
-terraform.tfvars
-*.auto.tfvars
-
-# Local state — never commit, use S3 backend instead
-terraform.tfstate
-terraform.tfstate.backup
-.terraform.tfstate.lock.info
-
-# Terraform working directory
+# Terraform
 .terraform/
-.terraform.lock.hcl
-
-# Crash logs
+*.tfstate
+*.tfstate.backup
+*.tfplan
+*.lock.hcl
 crash.log
 crash.*.log
-
-# Override files
 override.tf
 override.tf.json
 *_override.tf
-*_override.tf.json.env
+*_override.tf.json
+.terraformrc
+terraform.rc
+*.tfvars
+
+# SSH Keys (never commit private keys)
+devops-bank-app-key
+*.pem
+
+# OS
+.DS_Store
