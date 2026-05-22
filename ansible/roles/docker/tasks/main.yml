@@ -1,0 +1,37 @@
+# Docker Installation Task
+
+- name: Install Docker Packages
+  apt:
+    name: "{{ docker_packages }}"
+    state: present
+
+- name: Enable and Start Docker Service
+  service:
+    name: "{{ docker_service }}"
+    state: started
+    enabled: yes
+
+- name: Add ubuntu user to docker group
+  user:
+    name: "{{ docker_user }}"
+    groups: docker
+    append: yes
+
+- name: Verify docker is installed
+  command: docker --version
+  register: docker_version
+  changed_when: false
+
+- name: Show docker version
+  debug:
+    msg: "{{ docker_version.stdout }}"
+
+- name: Verify docker compose is installed
+  command: docker compose version
+  register: compose_version
+  changed_when: false
+
+- name: Show docker compsoe version
+  debug:
+    msg: "{{ compose_version.stdout }}"
+

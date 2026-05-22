@@ -20,3 +20,19 @@ devops-bank-app-key
 
 # OS
 .DS_Store
+# Ansible
+ansible/inventory.ini
+ansible/*.retry
+ansible/roles/*/files/*.pem
+
+# Python venv
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

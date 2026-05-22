@@ -13,12 +13,11 @@ resource "aws_security_group" "bank_app" {
 # SSH — restricted to your IP only (never open to 0.0.0.0/0)
 resource "aws_vpc_security_group_ingress_rule" "ssh" {
   security_group_id = aws_security_group.bank_app.id
-  description       = "SSH access from my IP only"
+  description       = "SSH access - open for CI/CD pipeline"
   from_port         = 22
   to_port           = 22
   ip_protocol       = "tcp"
-  cidr_ipv4         = "${var.my_ip}/0"
-  #cidr_ipv4 = "0.0.0.0/0"
+  cidr_ipv4         = "0.0.0.0/0"
 }
 
 # Frontend — public access on port 8080
@@ -28,8 +27,7 @@ resource "aws_vpc_security_group_ingress_rule" "frontend" {
   from_port         = 8080
   to_port           = 8080
   ip_protocol       = "tcp"
-  cidr_ipv4         = "${var.my_ip}/0"
-  #cidr_ipv4         = "0.0.0.0/0"
+  cidr_ipv4         = "0.0.0.0/0"
 }
 
 # Backend API — public access on port 3000
@@ -39,8 +37,7 @@ resource "aws_vpc_security_group_ingress_rule" "backend" {
   from_port         = 3000
   to_port           = 3000
   ip_protocol       = "tcp"
-  cidr_ipv4         = "${var.my_ip}/0"
-  #cidr_ipv4         = "0.0.0.0/0"
+  cidr_ipv4         = "0.0.0.0/0"
 }
 
 # ── Egress Rule (outbound traffic) ────────────────────────────────────────────
@@ -49,6 +46,5 @@ resource "aws_vpc_security_group_egress_rule" "all_outbound" {
   security_group_id = aws_security_group.bank_app.id
   description       = "Allow all outbound traffic"
   ip_protocol       = "-1"
-  #cidr_ipv4         = "0.0.0.0/0"
-  cidr_ipv4 = "${var.my_ip}/0"
+  cidr_ipv4         = "0.0.0.0/0"
 }

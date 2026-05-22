@@ -22,16 +22,6 @@ variable "instance_type" {
   default     = "t3.micro"
 }
 
-# variable "key_pair_name" {
-#   description = "AWS key pair name for SSH access"
-#   type        = string
-# }
-
-variable "my_ip" {
-  description = "Your IP address for SSH access — run: curl ifconfig.me"
-  type        = string
-}
-
 variable "dockerhub_username" {
   description = "DockerHub username to pull images from"
   type        = string

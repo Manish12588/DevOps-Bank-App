@@ -1,0 +1,41 @@
+# ── DevOps Bank App — Server Provisioning ────────────────────────────────────
+# Configures a fresh Ubuntu EC2 instance with:
+#   1. Docker + Docker Compose
+#   2. App directory structure
+#   3. Environment file
+#   4. Running containers
+
+- name: Configure DevOps Bank App Server
+  hosts: all
+  become: True
+
+  pre_tasks:
+    - name: Wait for SSH to be ready
+      wait_for_connection:
+        delay: 10
+        timeout: 120
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+  roles:
+    - role: docker
+  
+  tasks:
+    - name: Create app directory
+      file:
+        path: /home/ubuntu/devops-bank-app
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+    
+    - name: Create database directory
+      file:
+        path: /home/ubuntu/devops-bank-app/database
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
