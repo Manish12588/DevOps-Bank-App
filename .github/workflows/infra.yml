@@ -103,10 +103,14 @@ jobs:
       
       # ── Setup SSH Key ─────────────────────────────────────────────────────────
       - name: Setup SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/devops-bank-app-key.pem
+          echo "${SSH_PRIVATE_KEY}" > ~/.ssh/devops-bank-app-key.pem
           chmod 400 ~/.ssh/devops-bank-app-key.pem
+          # Verify
+          head -1 ~/.ssh/devops-bank-app-key.pem
 
       # ── Ansible ───────────────────────────────────────────────────────────────
       - name: Install Ansible
