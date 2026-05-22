@@ -1,3 +1,38 @@
-node_modules/
-.env
-*.log
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+*.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+*.tfvars
+
+# SSH Keys (never commit private keys)
+devops-bank-app-key
+*.pem
+
+# OS
+.DS_Store
+# Ansible
+ansible/inventory.ini
+ansible/*.retry
+ansible/roles/*/files/*.pem
+
+# Python venv
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

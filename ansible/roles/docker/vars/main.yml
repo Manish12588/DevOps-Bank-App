@@ -1,0 +1,10 @@
+#Docker package to install
+docker_packages:
+  - docker.io
+  - docker-compose-v2
+
+#Docker Service Name
+docker_service: docker
+
+#User to add to the docker group
+docker_user: ubuntu
