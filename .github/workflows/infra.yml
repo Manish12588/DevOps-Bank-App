@@ -1,0 +1,134 @@
+# ── Infrastructure Pipeline ───────────────────────────────────────────────────
+# Provisions EC2 with Terraform and configures it with Ansible
+#
+# Triggers:
+#   - Manual (workflow_dispatch) — run anytime you need new infrastructure
+#   - Auto — when terraform/ or ansible/ files change on main
+#
+# What it does:
+#   1. Terraform init + apply — provisions VPC, EC2, security groups
+#   2. Ansible playbook — installs Docker, creates app directories
+#   3. Auto-updates EC2_SSH_HOST GitHub Secret with new EC2 IP
+# =============================================================================
+
+name: Infrastructure Pipeline
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - 'ansible/**'
+
+jobs:
+  provision:
+    name: Provision Infrastructure
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      secrets: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      # ── AWS Credentials ───────────────────────────────────────────────────────
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      
+      # ── Terraform ─────────────────────────────────────────────────────────────
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: terraform
+
+      - name: Terraform Plan
+        run: terraform plan
+        working-directory: terraform
+        env:
+          TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+          TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          TF_VAR_dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        working-directory: terraform
+        env:
+          TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+          TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          TF_VAR_dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ── Get EC2 IP ────────────────────────────────────────────────────────────
+      - name: Get EC2 IP from Terraform output
+        id: get_ip
+        run: |
+          EC2_IP=$(terraform output -raw instance_public_ip)
+          echo "ec2_ip=${EC2_IP}" >> $GITHUB_OUTPUT
+          echo "EC2 IP: ${EC2_IP}"
+        working-directory: terraform
+
+      # ── Update GitHub Secret ──────────────────────────────────────────────────
+      - name: Update EC2_SSH_HOST secret
+        run: |
+          gh secret set EC2_SSH_HOST --body "${{ steps.get_ip.outputs.ec2_ip }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Wait for EC2 to be ready ──────────────────────────────────────────────
+      - name: Wait for EC2 SSH to be available
+        run: |
+          echo "Waiting for EC2 to be ready..."
+          sleep 30
+          timeout 120 bash -c \
+            'until nc -z ${{ steps.get_ip.outputs.ec2_ip }} 22; do sleep 5; done'
+          echo "EC2 is ready"
+      
+      # ── Setup SSH Key ─────────────────────────────────────────────────────────
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/devops-bank-app-key.pem
+          chmod 400 ~/.ssh/devops-bank-app-key.pem
+
+      # ── Ansible ───────────────────────────────────────────────────────────────
+      - name: Install Ansible
+        run: |
+          sudo apt update -y
+          sudo apt install ansible-core -y
+
+      - name: Run Ansible playbook
+        run: |
+          ansible-playbook \
+            -i "${{ steps.get_ip.outputs.ec2_ip }}," \
+            playbook.yml
+        working-directory: ansible
+
+      # ── Summary ───────────────────────────────────────────────────────────────
+      - name: Infrastructure Summary
+        run: |
+          echo "=========================================="
+          echo "  Infrastructure Ready"
+          echo "=========================================="
+          echo "EC2 IP    : ${{ steps.get_ip.outputs.ec2_ip }}"
+          echo "App URL   : http://${{ steps.get_ip.outputs.ec2_ip }}:8080"
+          echo "SSH       : ssh -i ~/.ssh/devops-bank-app-key.pem ubuntu@${{ steps.get_ip.outputs.ec2_ip }}"
+          echo "EC2_SSH_HOST secret updated automatically"
+          echo "=========================================="
