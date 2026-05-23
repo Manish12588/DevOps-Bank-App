@@ -5,7 +5,7 @@ metadata:
   namespace: devops-bank
 
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: backend
   ports:
