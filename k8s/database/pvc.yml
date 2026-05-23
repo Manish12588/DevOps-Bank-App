@@ -3,11 +3,10 @@ kind: PersistentVolumeClaim
 metadata:
   name: postgres-pvc
   namespace: devops-bank
-
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: gp2    # ← add this for EKS
+  storageClassName: gp2
   resources:
     requests:
       storage: 1Gi
