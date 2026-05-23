@@ -1,34 +1,90 @@
 # ── VPC ───────────────────────────────────────────────────────────────────────
-# Isolated network for all bank app resources
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
-  enable_dns_hostnames = true # allows EC2 to get a public DNS name
+  enable_dns_hostnames = true
   enable_dns_support   = true
 
-  tags = { Name = "devops-bank-vpc" }
-}
-
-# ── Public Subnet ─────────────────────────────────────────────────────────────
-# EC2 lives here — map_public_ip_on_launch gives it a public IP automatically
-resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidr
-  availability_zone       = "${var.aws_region}a"
-  map_public_ip_on_launch = true
-
-  tags = { Name = "devops-bank-public-subnet" }
+  tags = {
+    Name                                    = "devops-bank-vpc"
+    "kubernetes.io/cluster/devops-bank-eks" = "shared"
+  }
 }
 
 # ── Internet Gateway ──────────────────────────────────────────────────────────
-# Without this, the VPC has no route to the internet
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
-
-  tags = { Name = "devops-bank-igw" }
+  tags   = { Name = "devops-bank-igw" }
 }
 
-# ── Route Table ───────────────────────────────────────────────────────────────
-# Tells the subnet: send all internet traffic (0.0.0.0/0) to the IGW
+# ── Public Subnet AZ-a (EC2 lives here) ──────────────────────────────────────
+resource "aws_subnet" "public_a" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.public_subnet_cidr_a
+  availability_zone       = "${var.aws_region}a"
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name                                    = "devops-bank-public-subnet-a"
+    "kubernetes.io/cluster/devops-bank-eks" = "shared"
+    "kubernetes.io/role/elb"                = "1"
+  }
+}
+
+# ── Public Subnet AZ-b (EKS requirement) ─────────────────────────────────────
+resource "aws_subnet" "public_b" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.public_subnet_cidr_b
+  availability_zone       = "${var.aws_region}b"
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name                                    = "devops-bank-public-subnet-b"
+    "kubernetes.io/cluster/devops-bank-eks" = "shared"
+    "kubernetes.io/role/elb"                = "1"
+  }
+}
+
+# ── Private Subnet AZ-a (EKS worker nodes) ───────────────────────────────────
+resource "aws_subnet" "private_a" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.private_subnet_cidr_a
+  availability_zone = "${var.aws_region}a"
+
+  tags = {
+    Name                                    = "devops-bank-private-subnet-a"
+    "kubernetes.io/cluster/devops-bank-eks" = "shared"
+    "kubernetes.io/role/internal-elb"       = "1"
+  }
+}
+
+# ── Private Subnet AZ-b (EKS worker nodes) ───────────────────────────────────
+resource "aws_subnet" "private_b" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.private_subnet_cidr_b
+  availability_zone = "${var.aws_region}b"
+
+  tags = {
+    Name                                    = "devops-bank-private-subnet-b"
+    "kubernetes.io/cluster/devops-bank-eks" = "shared"
+    "kubernetes.io/role/internal-elb"       = "1"
+  }
+}
+
+# ── NAT Gateway ───────────────────────────────────────────────────────────────
+resource "aws_eip" "nat" {
+  domain     = "vpc"
+  depends_on = [aws_internet_gateway.main]
+  tags       = { Name = "devops-bank-nat-eip" }
+}
+
+resource "aws_nat_gateway" "main" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public_a.id
+  tags          = { Name = "devops-bank-nat" }
+  depends_on    = [aws_internet_gateway.main]
+}
+
+# ── Public Route Table (via IGW) ──────────────────────────────────────────────
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
@@ -40,13 +96,38 @@ resource "aws_route_table" "public" {
   tags = { Name = "devops-bank-public-rt" }
 }
 
-# ── Route Table Association ───────────────────────────────────────────────────
-# Links the route table to the public subnet
-resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.public.id
+# ── Private Route Table (via NAT) ─────────────────────────────────────────────
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.main.id
+  }
+
+  tags = { Name = "devops-bank-private-rt" }
+}
+
+# ── Route Table Associations ──────────────────────────────────────────────────
+resource "aws_route_table_association" "public_a" {
+  subnet_id      = aws_subnet.public_a.id
   route_table_id = aws_route_table.public.id
 }
 
+resource "aws_route_table_association" "public_b" {
+  subnet_id      = aws_subnet.public_b.id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "private_a" {
+  subnet_id      = aws_subnet.private_a.id
+  route_table_id = aws_route_table.private.id
+}
+
+resource "aws_route_table_association" "private_b" {
+  subnet_id      = aws_subnet.private_b.id
+  route_table_id = aws_route_table.private.id
+}
 
 /**
 VPC — isolated private network. Everything lives inside it. Without VPC nothing communicates.
