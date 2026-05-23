@@ -4,10 +4,9 @@ metadata:
   name: frontend
   namespace: devops-bank
 spec:
-  type: NodePort        # expose outside cluster for local testing
+  type: LoadBalancer 
   selector:
     app: frontend
   ports:
     - port: 80
       targetPort: 80
-      nodePort: 30080   # access via localhost:30080
