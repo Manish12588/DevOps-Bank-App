@@ -36,4 +36,3 @@ __pycache__/
 .idea/
 *.swp
 *.swo
-k8s/secret.yml

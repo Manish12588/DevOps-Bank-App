@@ -14,9 +14,8 @@ spec:
     targetRevision: main
     path: k8s
     directory:
-      recurse: true              # ← add this
-      exclude: "**/secret.yml"   # ← updated pattern
-
+      recurse: true        
+    
   destination:
     server: https://kubernetes.default.svc
     namespace: devops-bank
