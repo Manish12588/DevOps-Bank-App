@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: manish12588/devops-bank-app-backend:a5986724c1689bca27ace7b64f544110ced2ad99
+          image: manish12588/devops-bank-app-backend:fcdd95338c14dddae96c17803dceee252ab17a48
           ports:
             - containerPort: 3000
 
