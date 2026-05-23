@@ -1,5 +1,5 @@
 # this will deploy the safe / secure / tested app to Prod server
-name: Deploy To Server
+name: Deploy To EC2 Server
 
 on: 
     workflow_call:
