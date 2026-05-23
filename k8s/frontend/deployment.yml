@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: manish12588/devops-bank-app-frontend:latest
+          image: manish12588/devops-bank-app-frontend:b5a912664d76e0e168d8516eec791f8433f50285
           ports:
             - containerPort: 80
 
