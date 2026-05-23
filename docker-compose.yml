@@ -58,7 +58,7 @@ services:
   # ── Tier 2: Backend API ──────────────────────────────────────────────────────
   backend:
     build:
-      context: ./backend
+      context: ./app/backend
       dockerfile: Dockerfile
     image: ${DOCKERHUB_USER}/devops-bank-app-backend:${DOCKER_TAG} # ← pull from DockerHub
     container_name: bank-backend
@@ -93,7 +93,7 @@ services:
   # ── Tier 1: Frontend ─────────────────────────────────────────────────────────
   frontend:
     build:
-      context: ./frontend
+      context: ./app/frontend
       dockerfile: Dockerfile
     image: ${DOCKERHUB_USER}/devops-bank-app-frontend:${DOCKER_TAG} # ← pull from DockerHub
     container_name: bank-frontend

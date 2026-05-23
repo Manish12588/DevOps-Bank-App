@@ -17,9 +17,9 @@ jobs:
             - name: Validate Dockerfile for Frontend
               uses: hadolint/hadolint-action@v3.1.0
               with:
-                dockerfile: ./backend/Dockerfile
+                dockerfile: ./app/backend/Dockerfile
 
             - name: Validate Dockerfile for Backend
               uses: hadolint/hadolint-action@v3.1.0
               with:
-                dockerfile: ./frontend/Dockerfile
+                dockerfile: ./app/frontend/Dockerfile

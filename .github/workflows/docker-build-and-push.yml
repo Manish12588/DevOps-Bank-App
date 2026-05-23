@@ -20,7 +20,7 @@ jobs:
       - name: Build and Push Backend Image
         uses: docker/build-push-action@v6
         with:
-          context: ./backend
+          context: ./app/backend
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-backend:latest
@@ -30,7 +30,7 @@ jobs:
       - name: Build and Push Frontend Image
         uses: docker/build-push-action@v6
         with:
-          context: ./frontend
+          context: ./app/frontend
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/devops-bank-app-frontend:latest

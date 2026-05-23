@@ -33,7 +33,7 @@ jobs:
                 host: ${{ secrets.EC2_SSH_HOST }}
                 username: ${{ secrets.EC2_SSH_USER }}
                 key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-                source: "docker-compose.yml,database/init.sql"
+                source: "docker-compose.yml,app/database/init.sql"
                 target: ~/devops-bank-app
                 
             - name: SSH to Prod server & run the app
