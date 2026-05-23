@@ -1,0 +1,5 @@
+[allowlist]
+  description = "Allowlist for sealed secrets and other false positives"
+  paths = [
+    '''k8s/sealed-secret.yml'''
+  ]
