@@ -3,7 +3,6 @@ kind: Service
 metadata:
   name: backend
   namespace: devops-bank
-
 spec:
   type: ClusterIP
   selector:
@@ -11,4 +10,3 @@ spec:
   ports:
     - port: 3000
       targetPort: 3000
-      nodePort: 30300
