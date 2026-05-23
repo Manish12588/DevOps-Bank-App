@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devops-bank-config
+  namespace: devops-bank
+
+data:
+  #Database connection
+  DB_HOST: "db"
+  DB_PORT: "5432"
+  DB_NAME: "bankdb"
+  DB_USER: "bankuser"
+
+  #Backend config
+  PORT: "3000"
+  NODE_ENV: "production"
+
+  #Ollama config
+  OLLAMA_HOST: "ollama"
+  OLLAMA_MODEL: "tinyllama"
