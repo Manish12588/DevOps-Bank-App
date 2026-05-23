@@ -35,5 +35,25 @@ output "vpc_id" {
 
 output "subnet_id" {
   description = "Public subnet ID"
-  value       = aws_subnet.public.id
+  value       = aws_subnet.public_a.id
+}
+
+output "eks_cluster_name" {
+  description = "EKS cluster name"
+  value       = aws_eks_cluster.main.name
+}
+
+output "eks_cluster_endpoint" {
+  description = "EKS cluster endpoint"
+  value       = aws_eks_cluster.main.endpoint
+}
+
+output "eks_cluster_version" {
+  description = "EKS cluster Kubernetes version"
+  value       = aws_eks_cluster.main.version
+}
+
+output "configure_kubectl" {
+  description = "Command to configure kubectl for this cluster"
+  value       = "aws eks update-kubeconfig --region ${var.aws_region} --name ${aws_eks_cluster.main.name}"
 }

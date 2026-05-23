@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: devops-bank-app
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io   # cleanup on delete
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Manish12588/DevOps-Bank-App.git
+    targetRevision: main
+    path: k8s
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devops-bank
+
+  syncPolicy:
+    automated:
+      prune: true      # delete resources removed from Git
+      selfHeal: true   # revert manual kubectl changes
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground   # clean delete order
+      - PruneLast=true                      # apply first, delete after
+      - ApplyOutOfSyncOnly=true             # only sync changed resources
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

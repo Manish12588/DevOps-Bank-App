@@ -1,8 +1,9 @@
 # ── EC2 Instance ──────────────────────────────────────────────────────────────
 resource "aws_instance" "devops_bank_server" {
-  ami                    = data.aws_ami.ubuntu.id #Get the ami value
-  instance_type          = var.instance_type      #Instance Type
-  subnet_id              = aws_subnet.public.id   #
+  ami           = data.aws_ami.ubuntu.id #Get the ami value
+  instance_type = var.instance_type      #Instance Type
+  #subnet_id              = aws_subnet.public.id   #
+  subnet_id              = aws_subnet.public_a.id
   key_name               = aws_key_pair.my_key_pair.key_name
   vpc_security_group_ids = [aws_security_group.bank_app.id]
 
