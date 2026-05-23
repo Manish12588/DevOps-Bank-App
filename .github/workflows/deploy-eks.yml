@@ -1,0 +1,57 @@
+# ── EKS Deployment via ArgoCD
+
+name: Deploy to EKS
+
+on:
+  workflow_call:
+
+jobs:
+  verify-eks-deployment:
+    name: Verify ArgoCD Sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region us-west-2 \
+            --name devops-bank-eks
+
+      - name: Install ArgoCD CLI
+        run: |
+          sudo curl -sSL -o /usr/local/bin/argocd-cli \
+            https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo chmod +x /usr/local/bin/argocd-cli
+
+      - name: Wait for ArgoCD sync
+        run: |
+          # Port-forward ArgoCD
+          kubectl port-forward svc/argocd-server -n argocd 8081:443 &
+          sleep 5
+
+          # Login
+          PASS=$(kubectl get secret argocd-initial-admin-secret \
+            -n argocd \
+            -o jsonpath="{.data.password}" | base64 -d)
+          argocd-cli login localhost:8081 \
+            --username admin \
+            --password $PASS \
+            --insecure
+
+          # Wait for sync
+          argocd-cli app wait devops-bank-app \
+            --sync \
+            --health \
+            --timeout 120
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n devops-bank
+          echo "✅ EKS deployment verified"
