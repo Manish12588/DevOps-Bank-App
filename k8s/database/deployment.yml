@@ -43,7 +43,8 @@ spec:
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data   # where to mount inside container
-
+              subPath: postgres
+              
           resources:
             requests:
               memory: "256Mi"
