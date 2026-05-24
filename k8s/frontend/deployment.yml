@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: YOUR_DOCKERHUB_USERNAME/devops-bank-app-frontend:fcdd95338c14dddae96c17803dceee252ab17a48
+          image: manish12588/devops-bank-app-frontend:fcdd95338c14dddae96c17803dceee252ab17a48
           ports:
             - containerPort: 80
 
