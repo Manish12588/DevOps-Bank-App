@@ -90,7 +90,7 @@ jobs:
         run: |
           # Try kubectl first (if cluster still exists)
           aws eks update-kubeconfig \
-            --region us-west-2 \
+            --region ${{ vars.AWS_REGION }} \
             --name ${{ vars.EKS_CLUSTER_NAME }} 2>/dev/null || echo "Cluster not found — skipping kubectl"
 
           # Delete via kubectl if cluster exists
@@ -105,27 +105,27 @@ jobs:
           echo "Deleting classic ELBs in VPC..."
           VPC_ID=$(aws ec2 describe-vpcs \
             --filters "Name=tag:Name,Values=devops-bank-vpc" \
-            --query "Vpcs[0].VpcId" --output text --region us-west-2 2>/dev/null)
+            --query "Vpcs[0].VpcId" --output text --region ${{ vars.AWS_REGION }} 2>/dev/null)
 
           if [ "$VPC_ID" != "None" ] && [ -n "$VPC_ID" ]; then
             echo "Found VPC: $VPC_ID"
 
             # Delete classic ELBs in this VPC
-            aws elb describe-load-balancers --region us-west-2 \
+            aws elb describe-load-balancers --region ${{ vars.AWS_REGION }} \
               --query "LoadBalancerDescriptions[?VPCId=='$VPC_ID'].LoadBalancerName" \
               --output text | tr '\t' '\n' | \
             while read elb; do
               [ -n "$elb" ] && echo "Deleting ELB: $elb" && \
-                aws elb delete-load-balancer --load-balancer-name $elb --region us-west-2
+                aws elb delete-load-balancer --load-balancer-name $elb --region ${{ vars.AWS_REGION }}
             done
 
             # Delete ALBs/NLBs in this VPC
-            aws elbv2 describe-load-balancers --region us-west-2 \
+            aws elbv2 describe-load-balancers --region ${{ vars.AWS_REGION }} \
               --query "LoadBalancers[?VpcId=='$VPC_ID'].LoadBalancerArn" \
               --output text | tr '\t' '\n' | \
             while read arn; do
               [ -n "$arn" ] && echo "Deleting ALB/NLB: $arn" && \
-                aws elbv2 delete-load-balancer --load-balancer-arn $arn --region us-west-2
+                aws elbv2 delete-load-balancer --load-balancer-arn $arn --region ${{ vars.AWS_REGION }}
             done
 
             # ── ADD THIS: Delete leftover ELB security groups ──────────────
@@ -133,10 +133,10 @@ jobs:
             aws ec2 describe-security-groups \
               --filters "Name=vpc-id,Values=$VPC_ID" "Name=group-name,Values=k8s-*" \
               --query "SecurityGroups[*].GroupId" \
-              --output text --region us-west-2 | tr '\t' '\n' | \
+              --output text --region ${{ vars.AWS_REGION }} | tr '\t' '\n' | \
             while read sg; do
               [ -n "$sg" ] && echo "Deleting SG: $sg" && \
-                aws ec2 delete-security-group --group-id $sg --region us-west-2 2>/dev/null || true
+                aws ec2 delete-security-group --group-id $sg --region ${{ vars.AWS_REGION }} 2>/dev/null || true
             done
             # ────────────────────────────────────────────────────────────────
 
@@ -151,7 +151,7 @@ jobs:
       - name: Backup Sealed Secrets key
         run: |
           aws eks update-kubeconfig \
-            --region us-west-2 \
+            --region ${{ vars.AWS_REGION }} \
             --name ${{ vars.EKS_CLUSTER_NAME }} 2>/dev/null || echo "Cluster not found — skipping backup"
 
           KEY=$(kubectl get secret -n kube-system \
