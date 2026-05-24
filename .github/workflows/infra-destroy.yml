@@ -85,6 +85,20 @@ jobs:
       - name: Terraform Init
         run: terraform init
         working-directory: terraform/eks
+        
+      - name: Delete LoadBalancer services before destroy
+        run: |
+          aws eks update-kubeconfig \
+            --region us-west-2 \
+            --name devops-bank-eks || echo "Cluster not found — skipping"
+          
+          # Delete LoadBalancer services to release ELBs
+          kubectl delete svc frontend -n devops-bank 2>/dev/null || echo "Service not found"
+          kubectl delete svc prometheus-grafana -n monitoring 2>/dev/null || echo "Service not found"
+          
+          # Wait for ELBs to be deleted
+          echo "Waiting for ELBs to be released..."
+          sleep 60
 
       - name: Terraform Destroy
         run: terraform destroy -auto-approve
