@@ -60,6 +60,15 @@ jobs:
               terraform import aws_iam_openid_connect_provider.eks $OIDC_ARN
           fi
 
+          # Import EBS CSI addon if exists
+          aws eks describe-addon \
+            --cluster-name devops-bank-eks \
+            --addon-name aws-ebs-csi-driver \
+            --region us-west-2 2>/dev/null && \
+            terraform state show aws_eks_addon.ebs_csi 2>/dev/null || \
+            terraform import aws_eks_addon.ebs_csi devops-bank-eks:aws-ebs-csi-driver \
+            2>/dev/null || echo "EBS CSI addon not found — will be created"
+
           echo "Import checks complete"
 
       - name: Terraform Validate
