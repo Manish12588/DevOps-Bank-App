@@ -126,7 +126,8 @@ jobs:
             sealed-secrets-master-key.yml 2>/dev/null || echo "No backup found"
 
           if [ -f sealed-secrets-master-key.yml ]; then
-            kubectl apply -f sealed-secrets-master-key.yml
+            # Force apply to overwrite the auto-generated key
+            kubectl apply -f sealed-secrets-master-key.yml --force
             kubectl rollout restart deployment sealed-secrets-controller \
               -n kube-system || true
             echo "Waiting for controller to restart..."
@@ -138,7 +139,7 @@ jobs:
             rm sealed-secrets-master-key.yml
             echo "Sealed Secrets key restored successfully"
           else
-            echo "No backup found — fresh install, need to re-seal secrets"
+            echo "No backup found — fresh install"
           fi
 
       # ── ArgoCD 
