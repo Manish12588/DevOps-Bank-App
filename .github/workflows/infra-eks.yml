@@ -159,9 +159,22 @@ jobs:
           kubectl apply -f argocd/application.yml
           echo "ArgoCD application deployed"
       
+      - name: Wait for devops-bank namespace
+        run: |
+          echo "Waiting for ArgoCD to create devops-bank namespace..."
+          for i in $(seq 1 30); do
+            if kubectl get namespace devops-bank 2>/dev/null; then
+              echo "Namespace ready"
+              break
+            fi
+            echo "Attempt $i/30 — waiting 10s..."
+            sleep 10
+          done
+
       - name: Apply Sealed Secret
         run: |
           kubectl apply -f k8s/sealed-secret.yml
+          kubectl rollout restart deployment -n devops-bank || true
           echo "Sealed secret applied"
       
       # ── Wait for DB and Initialize Schema 
