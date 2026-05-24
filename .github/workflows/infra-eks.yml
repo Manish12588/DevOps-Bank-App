@@ -70,7 +70,27 @@ jobs:
             2>/dev/null || echo "EBS CSI addon not found — will be created"
 
           echo "Import checks complete"
-
+      
+      - name: Wait for EBS CSI addon if already exists
+        run: |
+          STATUS=$(aws eks describe-addon \
+            --cluster-name devops-bank-eks \
+            --addon-name aws-ebs-csi-driver \
+            --region us-west-2 \
+            --query "addon.status" \
+            --output text 2>/dev/null || echo "NOT_FOUND")
+          
+          if [ "$STATUS" == "CREATING" ]; then
+            echo "EBS CSI addon is CREATING — waiting for ACTIVE..."
+            aws eks wait addon-active \
+              --cluster-name devops-bank-eks \
+              --addon-name aws-ebs-csi-driver \
+              --region us-west-2
+            echo "EBS CSI addon is now ACTIVE"
+          else
+            echo "EBS CSI addon status: $STATUS"
+          fi
+          
       - name: Terraform Validate
         run: terraform validate
         working-directory: terraform/eks
