@@ -34,12 +34,6 @@ variable "private_subnet_cidr_b" {
   default     = "10.0.4.0/24"
 }
 
-variable "aws_region" {
-  description = "AWS region to deploy resources"
-  type        = string
-  default     = "us-west-2"
-}
-
 variable "cluster_name" {
   description = "EKS cluster name"
   type        = string
