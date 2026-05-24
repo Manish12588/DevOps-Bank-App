@@ -136,7 +136,12 @@ jobs:
         run: |
           kubectl apply -f argocd/application.yml
           echo "ArgoCD application deployed"
-
+      
+      - name: Apply Sealed Secret
+        run: |
+          kubectl apply -f k8s/sealed-secret.yml
+          echo "Sealed secret applied"
+          
       - name: Summary
         run: |
           echo "=========================================="
