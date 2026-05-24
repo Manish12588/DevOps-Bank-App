@@ -12,7 +12,7 @@ terraform {
   backend "s3" {
     bucket = "devops-bank-app-tfstate"
     key    = "eks/terraform.tfstate"
-    region = var.aws_region
+    region = "us-west-2"
   }
 }
 
