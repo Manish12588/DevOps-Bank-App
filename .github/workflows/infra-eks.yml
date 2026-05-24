@@ -39,13 +39,23 @@ jobs:
       - name: Import existing IAM roles if they exist
         working-directory: terraform/eks
         run: |
-          aws iam get-role --role-name devops-bank-eks-cluster-role 2>/dev/null && \
-            terraform import aws_iam_role.eks_cluster devops-bank-eks-cluster-role || \
-            echo "Cluster role not found — will be created"
+          # Import cluster role — skip if already in state or not found
+          if aws iam get-role --role-name devops-bank-eks-cluster-role 2>/dev/null; then
+            terraform state show aws_iam_role.eks_cluster 2>/dev/null || \
+              terraform import aws_iam_role.eks_cluster devops-bank-eks-cluster-role
+            echo "Cluster role handled"
+          else
+            echo "Cluster role not found — will be created by Terraform"
+          fi
 
-          aws iam get-role --role-name devops-bank-eks-node-role 2>/dev/null && \
-            terraform import aws_iam_role.eks_node devops-bank-eks-node-role || \
-            echo "Node role not found — will be created"
+          # Import node role — skip if already in state or not found
+          if aws iam get-role --role-name devops-bank-eks-node-role 2>/dev/null; then
+            terraform state show aws_iam_role.eks_node 2>/dev/null || \
+              terraform import aws_iam_role.eks_node devops-bank-eks-node-role
+            echo "Node role handled"
+          else
+            echo "Node role not found — will be created by Terraform"
+          fi
       
       - name: Terraform Plan
         run: terraform plan

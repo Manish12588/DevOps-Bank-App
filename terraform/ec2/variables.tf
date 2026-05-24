@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "vpc_cidr" {
   description = "CIDR block for VPC"
   type        = string
-  default     = "10.1.0.0/16"    # different from EKS VPC (10.0.0.0/16)
+  default     = "10.1.0.0/16" # different from EKS VPC (10.0.0.0/16)
 }
 
 variable "public_subnet_cidr" {
@@ -25,18 +25,21 @@ variable "instance_type" {
 variable "dockerhub_username" {
   description = "DockerHub username"
   type        = string
+  default     = ""
 }
 
 variable "dockerhub_token" {
   description = "DockerHub access token"
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "jwt_secret" {
   description = "JWT secret for backend"
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "db_password" {
