@@ -141,12 +141,38 @@ jobs:
         run: |
           kubectl apply -f k8s/sealed-secret.yml
           echo "Sealed secret applied"
-          
+      
+      # ── Wait for DB and Initialize Schema 
+      - name: Initialize Database Schema
+        run: |
+          echo "Waiting for database pod to be ready..."
+          kubectl wait --for=condition=Ready pod \
+            -l app=db \
+            -n devops-bank \
+            --timeout=300s
+
+          DB_POD=$(kubectl get pod -l app=db \
+            -n devops-bank \
+            -o jsonpath="{.items[0].metadata.name}")
+
+          echo "Initializing database schema..."
+          kubectl exec -i $DB_POD \
+            -n devops-bank \
+            -- psql -U bankuser -d bankdb < app/database/init.sql
+
+          echo "Database schema initialized"
+
+      # ── Summary 
       - name: Summary
         run: |
           echo "=========================================="
           echo "  EKS Infrastructure Ready"
           echo "=========================================="
           terraform output configure_kubectl
+          echo "Frontend URL:"
+          kubectl get svc frontend -n devops-bank \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+          echo ""
+          echo "Grafana URL: (install observability stack separately)"
           echo "=========================================="
         working-directory: terraform/eks
