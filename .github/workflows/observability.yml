@@ -61,6 +61,46 @@ jobs:
             --wait \
             --timeout 10m
       
+      # ── Configure Grafana Datasources
+      - name: Configure Grafana Datasources
+        run: |
+          echo "Waiting for Grafana LoadBalancer..."
+          sleep 60
+
+          GRAFANA_URL=$(kubectl get svc prometheus-grafana \
+            -n monitoring \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+
+          echo "Grafana URL: http://${GRAFANA_URL}"
+
+          # Add Prometheus datasource
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -u admin:admin123 \
+            http://${GRAFANA_URL}/api/datasources \
+            -d '{
+              "name": "Prometheus",
+              "type": "prometheus",
+              "url": "http://prometheus-kube-prometheus-prometheus:9090",
+              "access": "proxy",
+              "isDefault": true
+            }' && echo "Prometheus datasource added" || echo "Prometheus datasource may already exist"
+
+          # Add Loki datasource
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -u admin:admin123 \
+            http://${GRAFANA_URL}/api/datasources \
+            -d '{
+              "name": "Loki",
+              "type": "loki",
+              "url": "http://loki:3100",
+              "access": "proxy",
+              "isDefault": false
+            }' && echo "Loki datasource added" || echo "Loki datasource may already exist"
+
+          echo "Datasources configured"
+
       # ── Metrics Server
       - name: Install Metrics Server
         run: |
