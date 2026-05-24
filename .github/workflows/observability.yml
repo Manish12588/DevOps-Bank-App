@@ -43,19 +43,6 @@ jobs:
         run: |
           kubectl apply -f k8s/monitoring/namespace.yml
 
-      - name: Install EBS CSI Driver
-        run: |
-          aws eks create-addon \
-            --cluster-name devops-bank-eks \
-            --addon-name aws-ebs-csi-driver \
-            --region us-west-2 || echo "EBS CSI Driver already installed"
-
-          # Wait for addon
-          aws eks wait addon-active \
-            --cluster-name devops-bank-eks \
-            --addon-name aws-ebs-csi-driver \
-            --region us-west-2
-
       - name: Install Prometheus + Grafana
         run: |
           helm upgrade --install prometheus \
@@ -73,6 +60,16 @@ jobs:
             --values helm/values/loki-values.yml \
             --wait \
             --timeout 10m
+      
+      # ── Metrics Server
+      - name: Install Metrics Server
+        run: |
+          kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+          kubectl wait --for=condition=Ready pods \
+            -l k8s-app=metrics-server \
+            -n kube-system \
+            --timeout=120s
+          echo "Metrics Server ready"
 
       - name: Get Grafana URL
         run: |
