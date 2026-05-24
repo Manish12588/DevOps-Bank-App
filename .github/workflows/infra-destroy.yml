@@ -127,6 +127,19 @@ jobs:
               [ -n "$arn" ] && echo "Deleting ALB/NLB: $arn" && \
                 aws elbv2 delete-load-balancer --load-balancer-arn $arn --region us-west-2
             done
+
+            # ── ADD THIS: Delete leftover ELB security groups ──────────────
+            echo "Deleting leftover ELB security groups..."
+            aws ec2 describe-security-groups \
+              --filters "Name=vpc-id,Values=$VPC_ID" "Name=group-name,Values=k8s-elb-*" \
+              --query "SecurityGroups[*].GroupId" \
+              --output text --region us-west-2 | tr '\t' '\n' | \
+            while read sg; do
+              [ -n "$sg" ] && echo "Deleting SG: $sg" && \
+                aws ec2 delete-security-group --group-id $sg --region us-west-2 2>/dev/null || true
+            done
+            # ────────────────────────────────────────────────────────────────
+
           else
             echo "VPC not found — nothing to clean up"
           fi
