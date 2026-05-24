@@ -35,7 +35,18 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
         working-directory: terraform/eks
+      
+      - name: Import existing IAM roles if they exist
+        working-directory: terraform/eks
+        run: |
+          aws iam get-role --role-name devops-bank-eks-cluster-role 2>/dev/null && \
+            terraform import aws_iam_role.eks_cluster devops-bank-eks-cluster-role || \
+            echo "Cluster role not found — will be created"
 
+          aws iam get-role --role-name devops-bank-eks-node-role 2>/dev/null && \
+            terraform import aws_iam_role.eks_node devops-bank-eks-node-role || \
+            echo "Node role not found — will be created"
+      
       - name: Terraform Plan
         run: terraform plan
         working-directory: terraform/eks

@@ -1,4 +1,16 @@
-# ── EKS Cluster ───────────────────────────────────────────────────────────────
+# ── Launch Template — names EC2 instances 
+resource "aws_launch_template" "eks_nodes" {
+  name = "devops-bank-node-template"
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name = "devops-bank-worker-node"
+    }
+  }
+}
+
+# ── EKS Cluster 
 resource "aws_eks_cluster" "main" {
   name     = "devops-bank-eks"
   role_arn = aws_iam_role.eks_cluster.arn
@@ -11,8 +23,8 @@ resource "aws_eks_cluster" "main" {
       aws_subnet.public_a.id,
       aws_subnet.public_b.id
     ]
-    endpoint_public_access  = true # kubectl access from your laptop
-    endpoint_private_access = true # nodes communicate internally
+    endpoint_public_access  = true
+    endpoint_private_access = true
   }
 
   depends_on = [
@@ -22,30 +34,37 @@ resource "aws_eks_cluster" "main" {
   tags = { Name = "devops-bank-eks" }
 }
 
-# ── EKS Node Group ────────────────────────────────────────────────────────────
-# Managed node group — AWS handles node lifecycle
+# ── EKS Node Group 
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "devops-bank-nodes"
   node_role_arn   = aws_iam_role.eks_node.arn
 
-  # Worker nodes live in private subnets
   subnet_ids = [
     aws_subnet.private_a.id,
     aws_subnet.private_b.id
   ]
 
-  # Node configuration
-  instance_types = ["t3.medium"] # minimum for running K8s + app
+  instance_types = ["t3.medium"]
 
   scaling_config {
-    desired_size = 2 # start with 2 nodes
+    desired_size = 2
     min_size     = 1
     max_size     = 3
   }
 
   update_config {
-    max_unavailable = 1 # rolling update — keep 1 node available
+    max_unavailable = 1
+  }
+
+  labels = {
+    role = "worker"
+  }
+
+  # Use launch template to name EC2 instances
+  launch_template {
+    id      = aws_launch_template.eks_nodes.id
+    version = aws_launch_template.eks_nodes.latest_version
   }
 
   depends_on = [
