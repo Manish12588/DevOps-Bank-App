@@ -88,21 +88,51 @@ jobs:
         
       - name: Delete LoadBalancer services before destroy
         run: |
+          # Try kubectl first (if cluster still exists)
           aws eks update-kubeconfig \
             --region us-west-2 \
-            --name ${{ vars.EKS_CLUSTER_NAME }} || echo "Cluster not found — skipping"
+            --name ${{ vars.EKS_CLUSTER_NAME }} 2>/dev/null || echo "Cluster not found — skipping kubectl"
 
-          # Delete ALL LoadBalancer services across all namespaces
-          echo "Deleting all LoadBalancer services..."
+          # Delete via kubectl if cluster exists
           kubectl get svc --all-namespaces \
-            -o jsonpath='{range .items[?(@.spec.type=="LoadBalancer")]}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' | \
+            -o jsonpath='{range .items[?(@.spec.type=="LoadBalancer")]}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' 2>/dev/null | \
           while read namespace name; do
             echo "Deleting svc/$name in namespace/$namespace"
-            kubectl delete svc $name -n $namespace 2>/dev/null || echo "Already gone"
+            kubectl delete svc $name -n $namespace 2>/dev/null || true
           done
 
-          echo "Waiting 90s for ELBs to be released..."
-          sleep 90
+          # Always delete ELBs directly via AWS CLI regardless of cluster state
+          echo "Deleting classic ELBs in VPC..."
+          VPC_ID=$(aws ec2 describe-vpcs \
+            --filters "Name=tag:Name,Values=devops-bank-vpc" \
+            --query "Vpcs[0].VpcId" --output text --region us-west-2 2>/dev/null)
+
+          if [ "$VPC_ID" != "None" ] && [ -n "$VPC_ID" ]; then
+            echo "Found VPC: $VPC_ID"
+
+            # Delete classic ELBs in this VPC
+            aws elb describe-load-balancers --region us-west-2 \
+              --query "LoadBalancerDescriptions[?VPCId=='$VPC_ID'].LoadBalancerName" \
+              --output text | tr '\t' '\n' | \
+            while read elb; do
+              [ -n "$elb" ] && echo "Deleting ELB: $elb" && \
+                aws elb delete-load-balancer --load-balancer-name $elb --region us-west-2
+            done
+
+            # Delete ALBs/NLBs in this VPC
+            aws elbv2 describe-load-balancers --region us-west-2 \
+              --query "LoadBalancers[?VpcId=='$VPC_ID'].LoadBalancerArn" \
+              --output text | tr '\t' '\n' | \
+            while read arn; do
+              [ -n "$arn" ] && echo "Deleting ALB/NLB: $arn" && \
+                aws elbv2 delete-load-balancer --load-balancer-arn $arn --region us-west-2
+            done
+          else
+            echo "VPC not found — nothing to clean up"
+          fi
+
+          echo "Waiting 60s for ELBs to be fully released..."
+          sleep 60
       
       # ── Backup Sealed Secrets key before destroy 
       - name: Backup Sealed Secrets key
