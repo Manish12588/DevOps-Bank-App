@@ -32,31 +32,40 @@ jobs:
         run: terraform init
         working-directory: terraform/eks
 
-      - name: Terraform Validate
-        run: terraform validate
-        working-directory: terraform/eks
-      
-      - name: Import existing IAM roles if they exist
+      - name: Import existing resources if they exist
         working-directory: terraform/eks
         run: |
-          # Import cluster role — skip if already in state or not found
+          # Import IAM roles if they exist
           if aws iam get-role --role-name devops-bank-eks-cluster-role 2>/dev/null; then
             terraform state show aws_iam_role.eks_cluster 2>/dev/null || \
               terraform import aws_iam_role.eks_cluster devops-bank-eks-cluster-role
-            echo "Cluster role handled"
-          else
-            echo "Cluster role not found — will be created by Terraform"
           fi
 
-          # Import node role — skip if already in state or not found
           if aws iam get-role --role-name devops-bank-eks-node-role 2>/dev/null; then
             terraform state show aws_iam_role.eks_node 2>/dev/null || \
               terraform import aws_iam_role.eks_node devops-bank-eks-node-role
-            echo "Node role handled"
-          else
-            echo "Node role not found — will be created by Terraform"
           fi
-      
+
+          if aws iam get-role --role-name devops-bank-ebs-csi-role 2>/dev/null; then
+            terraform state show aws_iam_role.ebs_csi 2>/dev/null || \
+              terraform import aws_iam_role.ebs_csi devops-bank-ebs-csi-role
+          fi
+
+          # Import OIDC provider if exists
+          OIDC_ARN=$(aws iam list-open-id-connect-providers \
+            --query "OpenIDConnectProviderList[0].Arn" \
+            --output text 2>/dev/null)
+          if [ "$OIDC_ARN" != "None" ] && [ -n "$OIDC_ARN" ]; then
+            terraform state show aws_iam_openid_connect_provider.eks 2>/dev/null || \
+              terraform import aws_iam_openid_connect_provider.eks $OIDC_ARN
+          fi
+
+          echo "Import checks complete"
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: terraform/eks
+
       - name: Terraform Plan
         run: terraform plan
         working-directory: terraform/eks
@@ -70,54 +79,8 @@ jobs:
           aws eks update-kubeconfig \
             --region us-west-2 \
             --name devops-bank-eks
-      
-      # ── EBS CSI Driver 
-      - name: Install eksctl
-        run: |
-          curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz" | tar xz -C /tmp
-          sudo mv /tmp/eksctl /usr/local/bin/eksctl
-          eksctl version
 
-      - name: Setup EBS CSI Driver
-        run: |
-          # Attach policy to node role
-          aws iam attach-role-policy \
-            --role-name devops-bank-eks-node-role \
-            --policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
-            || echo "Policy already attached"
-
-          # Enable OIDC provider
-          eksctl utils associate-iam-oidc-provider \
-            --cluster devops-bank-eks \
-            --region us-west-2 \
-            --approve
-
-          # Create service account with IAM role
-          eksctl create iamserviceaccount \
-            --name ebs-csi-controller-sa \
-            --namespace kube-system \
-            --cluster devops-bank-eks \
-            --region us-west-2 \
-            --attach-policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
-            --approve \
-            --override-existing-serviceaccounts
-
-          # Install EBS CSI addon
-          aws eks create-addon \
-            --cluster-name devops-bank-eks \
-            --addon-name aws-ebs-csi-driver \
-            --region us-west-2 \
-            || echo "EBS CSI addon already installed"
-
-          # Wait for addon to be active
-          aws eks wait addon-active \
-            --cluster-name devops-bank-eks \
-            --addon-name aws-ebs-csi-driver \
-            --region us-west-2
-
-          echo "EBS CSI Driver ready"
-
-      # ── Sealed Secrets ]
+      # ── Sealed Secrets 
       - name: Install Sealed Secrets Controller
         run: |
           kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.0/controller.yaml
