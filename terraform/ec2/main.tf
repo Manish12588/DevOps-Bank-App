@@ -26,13 +26,3 @@ provider "aws" {
     }
   }
 }
-
-# Read VPC outputs from EKS workspace
-data "terraform_remote_state" "eks" {
-  backend = "s3"
-  config = {
-    bucket = "devops-bank-app-tfstate"
-    key    = "eks/terraform.tfstate"
-    region = "us-west-2"
-  }
-}

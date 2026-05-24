@@ -1,8 +1,8 @@
-# ── EC2 Instance 
+# ── EC2 Instance ──────────────────────────────────────────────────────────────
 resource "aws_instance" "devops_bank_server" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
-  subnet_id              = data.terraform_remote_state.eks.outputs.public_subnet_a_id
+  subnet_id              = aws_subnet.public.id
   key_name               = aws_key_pair.my_key_pair.key_name
   vpc_security_group_ids = [aws_security_group.bank_app.id]
 
