@@ -30,7 +30,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -74,7 +74,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -89,8 +89,8 @@ jobs:
       - name: Delete LoadBalancer services before destroy
         run: |
           aws eks update-kubeconfig \
-            --region us-west-2 \
-            --name devops-bank-eks || echo "Cluster not found — skipping"
+            --region ${{ vars.AWS_REGION }} \
+            --name ${{ vars.EKS_CLUSTER_NAME }} || echo "Cluster not found — skipping"
           
           # Delete LoadBalancer services to release ELBs
           kubectl delete svc frontend -n devops-bank 2>/dev/null || echo "Service not found"

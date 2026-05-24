@@ -1,525 +1,404 @@
-# 🏦 DevOps Bank — Docker Four-Tier Learning App
+# 🏦 DevOps Bank App
 
-A fully containerized **four-tier banking application** designed to teach Docker and Docker Compose through a real, working project. Features user authentication, JWT-secured APIs, per-user account isolation, and an AI assistant powered by Ollama.
+A production-grade banking application built to demonstrate a complete DevOps lifecycle — from local development to cloud-native deployment on AWS EKS, with full CI/CD, GitOps, security scanning, and observability.
 
----
-
-## 🏗️ Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Docker Host (your machine)                 │
-│                                                                 │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │                  bank-network (bridge)                     │ │
-│  │                                                            │ │
-│  │  ┌──────────┐   ┌──────────┐   ┌──────────┐  ┌─────────┐ │ │
-│  │  │  TIER 1  │   │  TIER 2  │   │  TIER 3  │  │ TIER 4  │ │ │
-│  │  │ Frontend │──▶│ Backend  │──▶│ Database │  │ Ollama  │ │ │
-│  │  │  Nginx   │   │ Node.js  │   │Postgres  │  │  LLM    │ │ │
-│  │  │  :80     │   │  :3000   │   │  :5432   │  │ :11434  │ │ │
-│  │  └──────────┘   └──────────┘   └──────────┘  └─────────┘ │ │
-│  │        │               │                                   │ │
-│  └────────┼───────────────┼───────────────────────────────────┘ │
-│           │               │                                     │
-│        :8080           :3000                                    │
-│     (browser)        (API/curl)                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-| Tier | Service    | Technology       | Internal Port | Host Port |
-|------|------------|------------------|--------------|-----------|
-| 1    | `frontend` | Nginx + HTML/JS  | 80           | **8080**  |
-| 2    | `backend`  | Node.js/Express  | 3000         | **3000**  |
-| 3    | `db`       | PostgreSQL 15    | 5432         | —         |
-| 4    | `ollama`   | Ollama LLM       | 11434        | —         |
+> This project is structured in 5 stages, each building on the previous one. A new user can run the app locally with Docker Compose in minutes, or deploy the full production stack on AWS using the provided GitHub Actions workflows.
 
 ---
 
-## 📦 Project Structure
+## 📐 Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        GitHub Actions (CI/CD)                       │
+│  Code Push → Scan → Build → Push Image → Update Manifest → Deploy  │
+└─────────────────────────────────┬───────────────────────────────────┘
+                                  │ GitOps (ArgoCD)
+                    ┌─────────────▼──────────────┐
+                    │       AWS EKS Cluster       │
+                    │                             │
+                    │  ┌─────────┐  ┌─────────┐  │
+                    │  │Frontend │  │ Backend │  │
+                    │  │  Nginx  │  │ Node.js │  │
+                    │  └────┬────┘  └────┬────┘  │
+                    │       │            │        │
+                    │  ┌────▼────────────▼─────┐ │
+                    │  │     PostgreSQL DB      │ │
+                    │  └───────────────────────┘ │
+                    │                             │
+                    │  ┌─────────────────────┐   │
+                    │  │  Prometheus + Loki  │   │
+                    │  │  Grafana Dashboards │   │
+                    │  └─────────────────────┘   │
+                    └─────────────────────────────┘
+```
+
+---
+
+## 🗂️ Project Structure
 
 ```
 DevOps-Bank-App/
-├── docker-compose.yml        ← Orchestrates all four containers
-├── .env                      ← Environment variables (never commit)
-├── .env.example              ← Template for .env
-├── .gitignore
-│
-├── frontend/
-│   ├── Dockerfile            ← Nginx image serving static files
-│   ├── nginx.conf            ← Nginx reverse proxy config
-│   ├── index.html            ← Main SPA (dashboard, accounts, operations)
-│   ├── login.html            ← Login page
-│   └── register.html         ← Registration page
-│
-├── backend/
-│   ├── Dockerfile            ← Node.js image
-│   ├── package.json          ← Dependencies incl. bcryptjs, jsonwebtoken
-│   └── server.js             ← Express REST API with JWT auth
-│
-└── database/
-    └── init.sql              ← Schema + seed data (runs on first start)
+├── .github/workflows/          # CI/CD GitHub Actions pipelines
+├── ansible/                    # Server configuration for EC2
+├── app/                        # Application source code
+│   ├── backend/                # Node.js/Express REST API
+│   ├── frontend/               # Nginx + HTML/JS
+│   └── database/               # PostgreSQL init schema
+├── argocd/                     # ArgoCD GitOps application manifest
+├── helm/values/                # Helm chart values (Prometheus, Loki)
+├── k8s/                        # Kubernetes manifests
+├── kind/                       # Local KIND cluster config
+├── terraform/
+│   ├── ec2/                    # EC2 staging environment
+│   └── eks/                    # EKS production cluster
+├── docker-compose.yml          # Local development
+└── .env.example                # Environment variable template
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Deployment Options
 
-### Prerequisites
+There are three ways to run this project:
+
+| Method | Environment | Effort |
+|--------|-------------|--------|
+| [Docker Compose](#-option-1-local-docker-compose) | Local machine | 5 minutes |
+| [EC2 (Staging)](#-option-2-ec2-staging-via-github-actions) | AWS EC2 | 10 minutes |
+| [EKS (Production)](#-option-3-eks-production-via-github-actions) | AWS EKS | 20 minutes |
+
+---
+
+## ✅ Prerequisites
+
+### For all options
+- Git
+- GitHub account with this repo forked
+
+### For Docker Compose (local)
+- Docker 24+ and Docker Compose v2
+- 4GB RAM minimum (8GB recommended for Ollama)
+
+### For EC2 and EKS (AWS)
+- AWS account with IAM user that has the following permissions:
+  - `AmazonEC2FullAccess`
+  - `AmazonEKSFullAccess`
+  - `AmazonS3FullAccess`
+  - `IAMFullAccess`
+  - `AmazonVPCFullAccess`
+- AWS CLI configured locally (`aws configure`)
+- Terraform 1.5+ installed
+- kubectl installed
+- Helm 3+ installed
+- Docker Hub account (free tier is fine)
+
+### GitHub Secrets required (EC2 + EKS)
+
+Go to your forked repo → Settings → Secrets and variables → Actions → New repository secret:
+
+| Secret | Description | How to get it |
+|--------|-------------|---------------|
+| `AWS_ACCESS_KEY_ID` | AWS IAM access key | AWS Console → IAM → Users → Security credentials |
+| `AWS_SECRET_ACCESS_KEY` | AWS IAM secret key | Same as above |
+| `DOCKERHUB_USERNAME` | Docker Hub username | Your Docker Hub account |
+| `DOCKERHUB_TOKEN` | Docker Hub access token | Docker Hub → Account Settings → Security |
+| `JWT_SECRET` | Random secret for JWT signing | Run: `openssl rand -hex 32` |
+| `DB_PASSWORD` | PostgreSQL password | Choose any strong password |
+| `EC2_SSH_PRIVATE_KEY` | SSH private key for EC2 | Generated by Terraform (auto-set by workflow) |
+| `EC2_SSH_HOST` | EC2 public IP | Auto-set by infra-ec2 workflow |
+| `EC2_SSH_USER` | SSH user | `ubuntu` |
+| `GH_PAT` | GitHub Personal Access Token | GitHub → Settings → Developer settings → PAT (needs `repo` scope) |
+
+---
+
+## 🐳 Option 1: Local Docker Compose
+
+Run the full app locally in minutes — no cloud required.
+
+### Steps
 
 ```bash
-docker --version        # Docker 24+ recommended
-docker compose version  # Docker Compose v2
-```
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/Manish12588/DevOps-Bank-App.git
+# 1. Clone the repo
+git clone https://github.com/<your-username>/DevOps-Bank-App.git
 cd DevOps-Bank-App
-```
 
-### 2. Create your `.env` file
-
-```bash
+# 2. Create environment file
 cp .env.example .env
-```
+# Edit .env with your values (see .env.example for guidance)
 
-Edit `.env` and set your values:
-
-```env
-DOCKERHUB_USER=your-dockerhub-username
-DOCKER_TAG=latest
-JWT_SECRET=your-random-secret-here   # generate with: openssl rand -hex 32
-DB_PASSWORD=bankpass
-```
-
-> ⚠️ Never commit `.env` to Git. It's in `.gitignore` by default.
-
-### 3. Start everything
-
-```bash
+# 3. Start everything
 docker compose up --build
+
+# 4. Open the app
+# App:    http://localhost:8080
+# API:    http://localhost:3000
+# Health: http://localhost:3000/health
+
+# 5. Stop
+docker compose down       # keep data
+docker compose down -v    # delete all data
 ```
 
-> **What this does:**
-> - Builds Docker images for `frontend` and `backend` from local Dockerfiles
-> - Pulls `postgres:15-alpine` and `ollama/ollama` from Docker Hub
-> - Creates a bridge network (`bank-network`)
-> - Creates named volumes (`bank-pgdata`, `ollama-data`) for persistence
-> - Starts all containers in dependency order:
->   `db` + `ollama` → `backend` → `frontend`
-
-### 4. Open the app
-
-Once you see `Bank API running on port 3000` in the logs:
-
-- **🌐 App:** http://localhost:8080
-- **⚙️ API:** http://localhost:3000
-- **❤️ Health:** http://localhost:3000/health
-
-### 5. Register and log in
-
-Navigate to http://localhost:8080 — you'll be redirected to the login page.
-
-- Click **"Create one"** to register a new account
-- Fill in your name, email, and password (min. 8 characters)
-- After registration you'll be automatically redirected to the dashboard
-
-### 6. Stop everything
-
-```bash
-# Stop but keep data:
-docker compose down
-
-# Stop AND delete all data:
-docker compose down -v
-```
-
----
-
-## 🔐 Authentication
-
-The app uses **JWT (JSON Web Token)** based authentication.
-
-### How it works
-
-```
-User registers/logs in
-        ↓
-Backend validates credentials, signs a JWT with JWT_SECRET
-        ↓
-Token stored in browser localStorage
-        ↓
-Every API request sends: Authorization: Bearer <token>
-        ↓
-Backend middleware verifies token on every protected route
-        ↓
-Token expires after 24 hours → user redirected to login
-```
-
-### Security features
-
-- Passwords hashed with **bcrypt** (10 salt rounds) — never stored in plain text
-- All `/api/accounts`, `/api/transactions`, `/api/transfer`, `/api/ai` routes are **JWT-protected**
-- Each user only sees **their own accounts and transactions** — no cross-user data leakage
-- Deposit/withdraw/transfer all verify **account ownership** before executing
-- Token expiry auto-redirects to login page
-
-### Default seed user
-
-The database ships with one seed user for testing:
-
+### Default login
 | Email | Password |
 |-------|----------|
 | `admin@bank.local` | `admin123` |
 
-> Change this password immediately in any non-local environment.
-
 ---
 
-## 🎯 Features
+## ☁️ Option 2: EC2 Staging via GitHub Actions
 
-- **Registration & Login** — Secure user accounts with bcrypt + JWT
-- **Dashboard** — Real-time balance stats scoped to logged-in user
-- **Accounts** — View your accounts, click to see transaction history
-- **Deposit / Withdraw / Transfer** — Full money operations with ownership validation
-- **New Account** — Open Savings, Checking, or Business accounts
-- **AI Assistant** — Chat with a local LLM (Ollama) about your accounts
-- **Architecture page** — Learn how the tiers connect inside the UI
-- **Logout** — Clears token and redirects to login
+Provisions an AWS EC2 instance with Terraform, configures it with Ansible, and deploys the app using Docker Compose.
 
----
-
-## 🌐 Nginx Reverse Proxy
-
-The frontend Nginx container acts as a reverse proxy — the browser only talks to port 8080, and Nginx forwards API calls to the backend:
-
-```
-Browser → localhost:8080/api/*  →  Nginx  →  backend:3000/api/*
-Browser → localhost:8080/*.html →  Nginx  →  serves static file
-```
-
-This means the backend is **not directly exposed** to the browser — all traffic goes through Nginx.
-
----
-
-## 🔌 API Reference
-
-All endpoints are available at `http://localhost:3000`.
-
-Protected routes require the header:
-```
-Authorization: Bearer <your-jwt-token>
-```
-
-### Auth (public)
+### One-time setup
 
 ```bash
-# Register
-POST /api/auth/register
-{ "full_name": "Jane Doe", "email": "jane@example.com", "password": "mypassword" }
+# 1. Create S3 bucket for Terraform state (run once)
+aws s3 mb s3://devops-bank-app-tfstate --region us-west-2
+aws s3api put-bucket-versioning \
+  --bucket devops-bank-app-tfstate \
+  --versioning-configuration Status=Enabled
 
-# Login
-POST /api/auth/login
-{ "email": "jane@example.com", "password": "mypassword" }
-
-# Both return:
-{ "token": "<jwt>", "user": { "id": 1, "email": "...", "full_name": "..." } }
+# 2. Add your SSH public key to Terraform
+cat ~/.ssh/id_rsa.pub > terraform/ec2/devops-bank-app-key.pub
+# Or generate a new key pair:
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/devops-bank-app-key
+cat ~/.ssh/devops-bank-app-key.pub > terraform/ec2/devops-bank-app-key.pub
 ```
 
-### Health (public)
+### Deploy
 
-```bash
-GET /health
-# → { "status": "ok", "db": "connected" }
+```
+GitHub → Actions → Provision EC2 Infrastructure → Run workflow → main
 ```
 
-### Accounts 🔒
+This workflow automatically:
+1. Runs Terraform to provision EC2, VPC, security groups
+2. Generates inventory.ini for Ansible
+3. Runs Ansible to install Docker on the EC2 instance
+4. Deploys the app using Docker Compose
+5. Updates `EC2_SSH_HOST` secret with the new IP
 
-```bash
-# List your accounts
-GET /api/accounts
+**Access the app:** Check the workflow summary for the EC2 public IP.
 
-# Get one account (must be yours)
-GET /api/accounts/:id
+### Destroy EC2
 
-# Create new account
-POST /api/accounts
-{ "owner_name": "Jane Doe", "account_type": "SAVINGS", "initial_balance": 1000 }
 ```
-
-### Operations 🔒
-
-```bash
-# Deposit
-POST /api/accounts/:id/deposit
-{ "amount": 500, "description": "Salary" }
-
-# Withdraw
-POST /api/accounts/:id/withdraw
-{ "amount": 200, "description": "Groceries" }
-
-# Transfer (you must own the source account)
-POST /api/transfer
-{ "from_account_id": 1, "to_account_id": 2, "amount": 100, "description": "Rent" }
-
-# Get transactions for your account
-GET /api/accounts/:id/transactions
-
-# Get all your transactions
-GET /api/transactions
-```
-
-### AI Assistant 🔒
-
-```bash
-POST /api/ai/chat
-{ "message": "What is my total balance?" }
-# → { "reply": "..." }
-```
-
-### Test with curl
-
-```bash
-# Register
-curl -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"full_name":"Test User","email":"test@example.com","password":"testpass123"}'
-
-# Login and save token
-TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"testpass123"}' | jq -r '.token')
-
-# List your accounts
-curl http://localhost:3000/api/accounts \
-  -H "Authorization: Bearer $TOKEN" | jq
-
-# Create an account
-curl -X POST http://localhost:3000/api/accounts \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"owner_name":"Test User","account_type":"SAVINGS","initial_balance":1000}'
-
-# Deposit into account 1
-curl -X POST http://localhost:3000/api/accounts/1/deposit \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"amount": 500, "description": "Test deposit"}'
+GitHub → Actions → Destroy Infrastructure → Run workflow
+→ environment: ec2
 ```
 
 ---
 
-## 🗄️ Database Schema
+## ☸️ Option 3: EKS Production via GitHub Actions
 
-```sql
--- Users (authentication)
-users
-  id, email, password_hash, full_name, created_at
+Provisions a full AWS EKS cluster with Terraform, installs ArgoCD for GitOps, Sealed Secrets for secret management, and deploys the app.
 
--- Bank accounts (linked to users)
-accounts
-  id, user_id, owner_name, account_type, balance, created_at, updated_at
-
--- Transaction history
-transactions
-  id, account_id, type, amount, description, balance_after, created_at
-```
-
-The `init.sql` runs automatically when the PostgreSQL container starts for the **first time** (empty volume). If you change the schema, run:
+### One-time setup
 
 ```bash
-docker compose down -v   # removes the volume
-docker compose up --build
+# 1. Create S3 bucket for Terraform state (skip if already done for EC2)
+aws s3 mb s3://devops-bank-app-tfstate --region us-west-2
+aws s3api put-bucket-versioning \
+  --bucket devops-bank-app-tfstate \
+  --versioning-configuration Status=Enabled
+
+# 2. Install kubeseal CLI (to seal secrets)
+# Linux:
+wget https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.0/kubeseal-0.27.0-linux-amd64.tar.gz
+tar -xvzf kubeseal-0.27.0-linux-amd64.tar.gz kubeseal
+sudo install -m 755 kubeseal /usr/local/bin/kubeseal
+
+# Mac:
+brew install kubeseal
+
+# 3. Configure kubectl to point to your EKS cluster (after first deploy)
+aws eks update-kubeconfig --region us-west-2 --name devops-bank-eks
+
+# 4. Create and seal the Kubernetes secret
+cat > /tmp/secret.yml << EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: devops-bank-secret
+  namespace: devops-bank
+type: Opaque
+stringData:
+  DB_PASSWORD: "your-db-password"
+  DB_USER: "bankuser"
+  JWT_SECRET: "your-jwt-secret"
+EOF
+
+kubeseal --format yaml < /tmp/secret.yml > k8s/sealed-secret.yml
+rm /tmp/secret.yml
+
+git add k8s/sealed-secret.yml
+git commit -m "feat: add sealed secret"
+git push origin main
 ```
 
-Or apply changes manually:
+### Deploy
 
+```
+GitHub → Actions → Provision EKS Infrastructure → Run workflow → main
+```
+
+This workflow automatically:
+1. Provisions VPC, EKS cluster, node groups, IAM roles with Terraform
+2. Installs EBS CSI driver (for persistent storage)
+3. Installs Sealed Secrets controller
+4. Restores Sealed Secrets key from S3 (if exists)
+5. Installs ArgoCD
+6. Deploys ArgoCD application (watches `k8s/` folder)
+7. Applies sealed secret
+8. Initializes database schema
+
+**Access the app:**
 ```bash
-docker exec -i bank-db psql -U bankuser -d bankdb < database/init.sql
+kubectl get svc frontend -n devops-bank
+# Copy the EXTERNAL-IP and open http://<EXTERNAL-IP>
+```
+
+### Install Observability Stack (optional but recommended)
+
+```
+GitHub → Actions → Install Observability Stack → Run workflow → main
+```
+
+This installs:
+- Prometheus + AlertManager (metrics)
+- Grafana (dashboards — pre-built Kubernetes dashboards included)
+- Loki + Promtail (log aggregation)
+- Metrics Server (`kubectl top pods`)
+
+**Access Grafana:**
+```bash
+kubectl get svc prometheus-grafana -n monitoring
+# Open http://<EXTERNAL-IP>
+# Login: admin / admin123
+```
+
+### Destroy EKS
+
+```
+GitHub → Actions → Destroy Infrastructure → Run workflow
+→ environment: eks
+```
+
+> The destroy workflow automatically backs up the Sealed Secrets key to S3 before destroying, so re-provisioning doesn't require re-sealing secrets.
+
+---
+
+## 🔄 CI/CD Pipeline (GitOps Flow)
+
+Every push to `main` that changes `app/backend/**` or `app/frontend/**` triggers the full pipeline:
+
+```
+git push
+    │
+    ├── Code Quality (ESLint)
+    ├── Secrets Scan (Gitleaks)
+    ├── Dependency Scan (npm audit)
+    ├── Docker Lint (Hadolint)
+    │
+    ├── Build Docker images
+    ├── Push to Docker Hub (backend + frontend)
+    ├── Trivy image vulnerability scan
+    │
+    ├── Update k8s manifests with new image SHA
+    ├── Commit updated manifests back to Git
+    │
+    └── ArgoCD detects Git change → deploys to EKS automatically
 ```
 
 ---
 
-## 🐳 Docker Concepts You'll Learn
+## 🔒 Security
 
-### Multi-stage builds (backend Dockerfile)
-
-```dockerfile
-# Stage 1: Install dependencies
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package*.json ./
-RUN npm install --omit=dev
-
-# Stage 2: Lean final image
-FROM node:20-alpine
-COPY --from=deps /app/node_modules ./node_modules
-COPY server.js ./
-```
-
-### docker-compose.yml concepts
-
-| Concept | Where used | What it does |
-|---------|-----------|--------------|
-| `build.context` | frontend, backend | Build from local Dockerfile |
-| `image` | all | Tag or pull from Docker Hub |
-| `environment` | all | Pass env vars into containers |
-| `ports` | frontend, backend | Map host port → container port |
-| `networks` | all | Put containers on shared network |
-| `volumes` | db, ollama | Persist data across restarts |
-| `depends_on` | backend, frontend | Start-order with health conditions |
-| `healthcheck` | all | Know when a service is truly ready |
-| `restart: unless-stopped` | all | Auto-restart on crash |
-
-### Container networking
-
-```
-backend → db:5432        (not localhost — service name resolves on bank-network)
-backend → ollama:11434   (AI requests stay inside Docker network)
-browser → nginx:8080     (only Nginx is exposed externally)
-```
-
-### Volumes
-
-```yaml
-volumes:
-  bank-pgdata:    # PostgreSQL data — survives container restarts
-  ollama-data:    # Downloaded AI models — avoids re-downloading
-```
+| Feature | Implementation |
+|---------|---------------|
+| Secret management | Bitnami Sealed Secrets (encrypted in Git) |
+| Secret scanning | Gitleaks on every push |
+| Container scanning | Trivy image scan |
+| Dependency scanning | npm audit |
+| Docker linting | Hadolint |
+| JWT authentication | All API routes protected |
+| Password hashing | bcrypt (10 salt rounds) |
 
 ---
 
-## 🔍 Useful Docker Commands
+## 📊 Observability
 
-```bash
-# ── Status ─────────────────────────────────────────────────
-docker compose ps                          # All container statuses
-docker compose logs -f backend             # Follow backend logs
-docker compose logs -f                     # Follow all logs
+| Tool | Purpose | Access |
+|------|---------|--------|
+| Prometheus | Metrics collection | Internal (port 9090) |
+| Grafana | Dashboards | LoadBalancer URL |
+| Loki | Log aggregation | Internal (port 3100) |
+| Promtail | Log shipping | DaemonSet on all nodes |
+| Metrics Server | `kubectl top` support | Internal |
+| AlertManager | Alerting | Internal |
 
-# ── Shell access ───────────────────────────────────────────
-docker exec -it bank-backend sh            # Shell into backend
-docker exec -it bank-db psql -U bankuser -d bankdb   # Postgres CLI
-
-# Inside psql:
-# \dt                          → list tables
-# SELECT * FROM users;
-# SELECT * FROM accounts;
-# SELECT * FROM transactions;
-# \q                           → quit
-
-# ── Rebuild after code changes ────────────────────────────
-docker compose up --build backend          # Rebuild only backend
-docker compose up --build frontend         # Rebuild only frontend
-docker compose up --build                  # Rebuild everything
-
-# ── Cleanup ───────────────────────────────────────────────
-docker compose down                        # Stop & remove containers
-docker compose down -v                     # Also remove volumes (DELETES DATA)
-docker system prune                        # Remove unused images/containers
-
-# ── AI model (pull once after first start) ─────────────────
-docker exec -it bank-ollama ollama pull tinyllama
-docker exec -it bank-ollama ollama list    # See downloaded models
-```
+Pre-built dashboards available in Grafana:
+- Kubernetes / Compute Resources / Cluster
+- Kubernetes / Compute Resources / Namespace (Pods)
+- Kubernetes / Networking
+- Node Exporter Full
 
 ---
 
-## 🛑 Troubleshooting
+## 📁 Folder READMEs
 
-### Redirected to login but can't log in
+Each folder contains its own README with detailed documentation:
 
-The JWT token in your browser may be stale (issued before a backend rebuild with a different secret). Fix:
-
-```javascript
-// Run in browser DevTools Console:
-localStorage.clear(); window.location.href = '/login.html';
-```
-
-Then log in again. To prevent this permanently, set a fixed `JWT_SECRET` in your `.env`.
-
-### Account dropdown is empty after login
-
-You're logged in but have no bank accounts yet. Go to **New Account** in the sidebar and create one first.
-
-### Backend crashes on startup — `Cannot find module 'bcryptjs'`
-
-The `bcryptjs` and `jsonwebtoken` packages are missing from `node_modules`. Fix:
-
-```bash
-cd backend
-npm install bcryptjs jsonwebtoken
-docker compose up --build backend -d
-```
-
-### Port already in use
-
-```bash
-lsof -i :8080    # find what's using the port
-# Change in docker-compose.yml: "9090:80" instead of "8080:80"
-```
-
-### Database schema changes not applied
-
-`init.sql` only runs on first volume creation. For schema changes on existing data:
-
-```bash
-docker compose down -v && docker compose up --build   # fresh start
-# OR apply manually:
-docker exec -i bank-db psql -U bankuser -d bankdb < database/init.sql
-```
-
-### Backend can't connect to database
-
-```bash
-docker compose ps           # check db shows (healthy)
-docker compose restart backend
-docker compose logs backend
-```
-
----
-
-## ⚙️ CI/CD Pipeline
-
-This project includes GitHub Actions workflows:
-
-### `build-and-push.yml`
-Triggered as part of the main pipeline. Builds and pushes Docker images to Docker Hub:
-- `manish12588/devops-bank-app-backend:latest` + SHA tag
-- `manish12588/devops-bank-app-frontend:latest` + SHA tag
-
-### `deploy.yml`
-SSHs into the production EC2 server and:
-1. Installs Docker if needed
-2. Copies `docker-compose.yml` and `database/init.sql`
-3. Creates `.env` with DockerHub credentials and SHA tag
-4. Pulls latest images and recreates containers
-
-### Required GitHub Secrets
-
-| Secret | Description |
+| Folder | Description |
 |--------|-------------|
-| `DOCKERHUB_USERNAME` | Docker Hub username |
-| `DOCKERHUB_TOKEN` | Docker Hub access token |
-| `EC2_SSH_HOST` | Production server IP |
-| `EC2_SSH_USER` | SSH username (e.g. `ubuntu`) |
-| `EC2_SSH_PRIVATE_KEY` | SSH private key |
-| `JWT_SECRET` | Fixed JWT signing secret |
+| [.github/workflows](.github/workflows/README.md) | CI/CD pipeline documentation |
+| [ansible](ansible/README.md) | Ansible roles and playbooks |
+| [app](app/README.md) | Application source code |
+| [argocd](argocd/README.md) | ArgoCD GitOps configuration |
+| [helm](helm/README.md) | Helm chart values |
+| [k8s](k8s/README.md) | Kubernetes manifests |
+| [kind](kind/README.md) | Local KIND cluster |
+| [terraform](terraform/README.md) | Infrastructure as Code |
 
 ---
 
-## 🌱 Ideas for Further Learning
+## 🛠️ Tech Stack
 
-1. **Add password reset** — Email-based reset flow with expiring tokens
-2. **Add Adminer** — DB admin UI as a 5th container
-3. **Add Redis** — Cache sessions or account balances
-4. **Docker Secrets** — Store `DB_PASSWORD` and `JWT_SECRET` as Docker secrets
-5. **Resource limits** — Add `deploy.resources.limits.memory` to containers
-6. **HTTPS** — Add Let's Encrypt via a Traefik or Certbot container
-7. **Rate limiting** — Add Nginx rate limiting on `/api/auth/*` routes
-8. **Refresh tokens** — Implement token refresh so users stay logged in
+| Category | Technology |
+|----------|-----------|
+| App | Node.js, Express, PostgreSQL, Nginx |
+| Containers | Docker, Docker Compose |
+| Container Registry | Docker Hub |
+| IaC | Terraform |
+| Configuration Management | Ansible |
+| Container Orchestration | Kubernetes (KIND + EKS) |
+| GitOps | ArgoCD |
+| CI/CD | GitHub Actions |
+| Secret Management | Bitnami Sealed Secrets |
+| Monitoring | Prometheus, Grafana |
+| Logging | Loki, Promtail |
+| Cloud | AWS (EC2, EKS, VPC, S3, IAM) |
+
+---
+
+## 🔮 Future Improvements
+
+### Testing (Planned)
+> **Note:** Automated testing will be added in a future iteration. Planned test coverage includes:
+> - Unit tests for backend API endpoints (Jest)
+> - Integration tests for database operations
+> - End-to-end tests for frontend flows (Playwright)
+> - Load testing with k6
+> - Test stage in CI/CD pipeline before Docker build
+
+### Infrastructure
+- OIDC-based GitHub Actions authentication (replace static AWS keys)
+- Ingress controller with single ALB and host-based routing
+- ACM SSL certificates + Route53 custom domain
+- Multi-environment tfvars (dev/stage/prod)
+- AWS Secrets Manager integration
 
 ---
 

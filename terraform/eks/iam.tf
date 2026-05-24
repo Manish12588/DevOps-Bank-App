@@ -1,7 +1,7 @@
 #EKS Cluster Rule
 
 resource "aws_iam_role" "eks_cluster" {
-  name = "devops-bank-eks-cluster-role"
+  name = "var.cluster_name-cluster-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -21,7 +21,7 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
 # ── EKS Node Role ─────────────────────────────────────────────────────────────
 # Allows worker nodes to join cluster and pull Docker images
 resource "aws_iam_role" "eks_node" {
-  name = "devops-bank-eks-node-role"
+  name = "var.cluster_name-node-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

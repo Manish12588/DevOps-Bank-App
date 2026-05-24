@@ -33,3 +33,22 @@ variable "private_subnet_cidr_b" {
   type        = string
   default     = "10.0.4.0/24"
 }
+
+variable "aws_region" {
+  description = "AWS region to deploy resources"
+  type        = string
+  default     = "us-west-2"
+}
+
+variable "cluster_name" {
+  description = "EKS cluster name"
+  type        = string
+  default     = "devops-bank-eks"
+}
+
+variable "grafana_password" {
+  description = "Grafana admin password"
+  type        = string
+  sensitive   = true
+  default     = "admin123"
+}

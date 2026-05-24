@@ -1,12 +1,14 @@
+# ── Prometheus + Grafana + AlertManager values ────────────────────────────────
+# Grafana password is passed via --set grafana.adminPassword from workflow secret
+
 grafana:
-  adminPassword: admin123
   service:
     type: LoadBalancer
   sidecar:
     datasources:
       enabled: true
-      defaultDatasourceEnabled: false  # disable built-in default
-      label: grafana_datasource        # watch ConfigMaps with this label
+      defaultDatasourceEnabled: false
+      label: grafana_datasource
       labelValue: "1"
 
 prometheus:

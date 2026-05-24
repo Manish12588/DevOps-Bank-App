@@ -20,7 +20,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -62,11 +62,11 @@ jobs:
 
           # Import EBS CSI addon if exists
           aws eks describe-addon \
-            --cluster-name devops-bank-eks \
+            --cluster-name ${{ vars.EKS_CLUSTER_NAME }} \
             --addon-name aws-ebs-csi-driver \
-            --region us-west-2 2>/dev/null && \
+            --region ${{ vars.AWS_REGION }} 2>/dev/null && \
             terraform state show aws_eks_addon.ebs_csi 2>/dev/null || \
-            terraform import aws_eks_addon.ebs_csi devops-bank-eks:aws-ebs-csi-driver \
+            terraform import aws_eks_addon.ebs_csi ${{ vars.EKS_CLUSTER_NAME }}:aws-ebs-csi-driver \
             2>/dev/null || echo "EBS CSI addon not found — will be created"
 
           echo "Import checks complete"
@@ -74,18 +74,18 @@ jobs:
       - name: Wait for EBS CSI addon if already exists
         run: |
           STATUS=$(aws eks describe-addon \
-            --cluster-name devops-bank-eks \
+            --cluster-name ${{ vars.EKS_CLUSTER_NAME }} \
             --addon-name aws-ebs-csi-driver \
-            --region us-west-2 \
+            --region ${{ vars.AWS_REGION }} \
             --query "addon.status" \
             --output text 2>/dev/null || echo "NOT_FOUND")
           
           if [ "$STATUS" == "CREATING" ]; then
             echo "EBS CSI addon is CREATING — waiting for ACTIVE..."
             aws eks wait addon-active \
-              --cluster-name devops-bank-eks \
+              --cluster-name ${{ vars.EKS_CLUSTER_NAME }} \
               --addon-name aws-ebs-csi-driver \
-              --region us-west-2
+              --region ${{ vars.AWS_REGION }}
             echo "EBS CSI addon is now ACTIVE"
           else
             echo "EBS CSI addon status: $STATUS"
@@ -106,8 +106,8 @@ jobs:
       - name: Configure kubectl
         run: |
           aws eks update-kubeconfig \
-            --region us-west-2 \
-            --name devops-bank-eks
+            --region ${{ vars.AWS_REGION }} \
+            --name ${{ vars.EKS_CLUSTER_NAME }}
 
       # ── Sealed Secrets 
       - name: Install Sealed Secrets Controller

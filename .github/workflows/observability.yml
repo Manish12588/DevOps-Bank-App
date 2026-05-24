@@ -21,13 +21,13 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Configure kubectl
         run: |
           aws eks update-kubeconfig \
-            --region us-west-2 \
-            --name devops-bank-eks
+            --region ${{ vars.AWS_REGION }} \
+            --name ${{ vars.EKS_CLUSTER_NAME }}
 
       - name: Install Helm
         run: |
@@ -49,6 +49,7 @@ jobs:
             prometheus-community/kube-prometheus-stack \
             --namespace monitoring \
             --values helm/values/prometheus-values.yml \
+            --set grafana.adminPassword=${{ secrets.GRAFANA_PASSWORD }} \
             --wait \
             --timeout 10m
 
@@ -76,7 +77,7 @@ jobs:
           # Add Prometheus datasource
           curl -s -X POST \
             -H "Content-Type: application/json" \
-            -u admin:admin123 \
+            -u admin:${{ secrets.GRAFANA_PASSWORD }} \
             http://${GRAFANA_URL}/api/datasources \
             -d '{
               "name": "Prometheus",
@@ -89,7 +90,7 @@ jobs:
           # Add Loki datasource
           curl -s -X POST \
             -H "Content-Type: application/json" \
-            -u admin:admin123 \
+            -u admin:${{ secrets.GRAFANA_PASSWORD }} \
             http://${GRAFANA_URL}/api/datasources \
             -d '{
               "name": "Loki",
@@ -123,5 +124,5 @@ jobs:
           echo "=========================================="
           echo "Grafana URL: http://${GRAFANA_URL}"
           echo "Username:    admin"
-          echo "Password:    admin123"
+          echo "Password:    ${{ secrets.GRAFANA_PASSWORD }}"
           echo "=========================================="
