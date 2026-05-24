@@ -1,0 +1,49 @@
+# ── Prometheus + Grafana + AlertManager values ────────────────────────────────
+
+grafana:
+  adminPassword: admin123
+  service:
+    type: LoadBalancer    # expose Grafana via AWS ELB
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          folder: DevOps Bank
+          type: file
+          options:
+            path: /var/lib/grafana/dashboards/default
+  dashboards:
+    default:
+      kubernetes-cluster:
+        gnetId: 7249      # Kubernetes cluster dashboard
+        revision: 1
+        datasource: Prometheus
+      node-exporter:
+        gnetId: 1860      # Node exporter dashboard
+        revision: 37
+        datasource: Prometheus
+
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false
+    retention: 15d        # keep metrics for 15 days
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp2
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp2
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 2Gi
