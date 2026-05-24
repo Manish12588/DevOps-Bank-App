@@ -1,0 +1,90 @@
+# ── Observability Stack ───────────────────────────────────────────────────────
+# Installs Prometheus, Grafana, Loki, Promtail on EKS
+# Triggered manually
+
+name: Install Observability Stack
+
+on:
+  workflow_dispatch:
+
+jobs:
+  install-observability:
+    name: Install Monitoring Stack
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig \
+            --region us-west-2 \
+            --name devops-bank-eks
+
+      - name: Install Helm
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Add Helm repositories
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo add grafana https://grafana.github.io/helm-charts
+          helm repo update
+
+      - name: Create monitoring namespace
+        run: |
+          kubectl apply -f k8s/monitoring/namespace.yml
+
+      - name: Install EBS CSI Driver
+        run: |
+          aws eks create-addon \
+            --cluster-name devops-bank-eks \
+            --addon-name aws-ebs-csi-driver \
+            --region us-west-2 || echo "EBS CSI Driver already installed"
+
+          # Wait for addon
+          aws eks wait addon-active \
+            --cluster-name devops-bank-eks \
+            --addon-name aws-ebs-csi-driver \
+            --region us-west-2
+
+      - name: Install Prometheus + Grafana
+        run: |
+          helm upgrade --install prometheus \
+            prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --values helm/values/prometheus-values.yml \
+            --wait \
+            --timeout 10m
+
+      - name: Install Loki + Promtail
+        run: |
+          helm upgrade --install loki \
+            grafana/loki-stack \
+            --namespace monitoring \
+            --values helm/values/loki-values.yml \
+            --wait \
+            --timeout 10m
+
+      - name: Get Grafana URL
+        run: |
+          echo "Waiting for Grafana LoadBalancer..."
+          sleep 30
+          GRAFANA_URL=$(kubectl get svc prometheus-grafana \
+            -n monitoring \
+            -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "=========================================="
+          echo "  Observability Stack Ready"
+          echo "=========================================="
+          echo "Grafana URL: http://${GRAFANA_URL}"
+          echo "Username:    admin"
+          echo "Password:    admin123"
+          echo "=========================================="

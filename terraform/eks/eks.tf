@@ -34,7 +34,8 @@ resource "aws_eks_cluster" "main" {
   tags = { Name = "devops-bank-eks" }
 }
 
-# ── EKS Node Group 
+# ── EKS Node Group
+
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "devops-bank-nodes"
@@ -74,4 +75,16 @@ resource "aws_eks_node_group" "main" {
   ]
 
   tags = { Name = "devops-bank-nodes" }
+}
+
+# ── EBS CSI Driver Addon ──────────────────────────────────────────────────────
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name             = aws_eks_cluster.main.name
+  addon_name               = "aws-ebs-csi-driver"
+  service_account_role_arn = aws_iam_role.ebs_csi.arn
+
+  depends_on = [
+    aws_eks_node_group.main,
+    aws_iam_role_policy_attachment.ebs_csi_policy
+  ]
 }

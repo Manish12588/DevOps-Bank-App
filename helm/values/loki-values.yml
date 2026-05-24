@@ -1,0 +1,11 @@
+# ── Loki + Promtail values ────────────────────────────────────────────────────
+
+loki:
+  persistence:
+    enabled: true
+    storageClassName: gp2
+    size: 10Gi
+
+promtail:
+  config:
+    lokiAddress: http://loki:3100/loki/api/v1/push

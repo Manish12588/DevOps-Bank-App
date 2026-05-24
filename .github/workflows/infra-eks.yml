@@ -32,31 +32,40 @@ jobs:
         run: terraform init
         working-directory: terraform/eks
 
-      - name: Terraform Validate
-        run: terraform validate
-        working-directory: terraform/eks
-      
-      - name: Import existing IAM roles if they exist
+      - name: Import existing resources if they exist
         working-directory: terraform/eks
         run: |
-          # Import cluster role — skip if already in state or not found
+          # Import IAM roles if they exist
           if aws iam get-role --role-name devops-bank-eks-cluster-role 2>/dev/null; then
             terraform state show aws_iam_role.eks_cluster 2>/dev/null || \
               terraform import aws_iam_role.eks_cluster devops-bank-eks-cluster-role
-            echo "Cluster role handled"
-          else
-            echo "Cluster role not found — will be created by Terraform"
           fi
 
-          # Import node role — skip if already in state or not found
           if aws iam get-role --role-name devops-bank-eks-node-role 2>/dev/null; then
             terraform state show aws_iam_role.eks_node 2>/dev/null || \
               terraform import aws_iam_role.eks_node devops-bank-eks-node-role
-            echo "Node role handled"
-          else
-            echo "Node role not found — will be created by Terraform"
           fi
-      
+
+          if aws iam get-role --role-name devops-bank-ebs-csi-role 2>/dev/null; then
+            terraform state show aws_iam_role.ebs_csi 2>/dev/null || \
+              terraform import aws_iam_role.ebs_csi devops-bank-ebs-csi-role
+          fi
+
+          # Import OIDC provider if exists
+          OIDC_ARN=$(aws iam list-open-id-connect-providers \
+            --query "OpenIDConnectProviderList[0].Arn" \
+            --output text 2>/dev/null)
+          if [ "$OIDC_ARN" != "None" ] && [ -n "$OIDC_ARN" ]; then
+            terraform state show aws_iam_openid_connect_provider.eks 2>/dev/null || \
+              terraform import aws_iam_openid_connect_provider.eks $OIDC_ARN
+          fi
+
+          echo "Import checks complete"
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: terraform/eks
+
       - name: Terraform Plan
         run: terraform plan
         working-directory: terraform/eks
@@ -70,6 +79,32 @@ jobs:
           aws eks update-kubeconfig \
             --region us-west-2 \
             --name devops-bank-eks
+
+      # ── Sealed Secrets 
+      - name: Install Sealed Secrets Controller
+        run: |
+          kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.0/controller.yaml
+          kubectl wait --for=condition=Ready pods \
+            -l name=sealed-secrets-controller \
+            -n kube-system \
+            --timeout=120s
+          echo "Sealed Secrets ready"
+
+      # ── ArgoCD 
+      - name: Install ArgoCD
+        run: |
+          kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -n argocd \
+            -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+          kubectl wait --for=condition=Ready pods \
+            --all -n argocd \
+            --timeout=300s
+          echo "ArgoCD ready"
+
+      - name: Deploy ArgoCD Application
+        run: |
+          kubectl apply -f argocd/application.yml
+          echo "ArgoCD application deployed"
 
       - name: Summary
         run: |
