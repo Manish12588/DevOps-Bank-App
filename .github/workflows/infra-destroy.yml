@@ -89,16 +89,20 @@ jobs:
       - name: Delete LoadBalancer services before destroy
         run: |
           aws eks update-kubeconfig \
-            --region ${{ vars.AWS_REGION }} \
+            --region us-west-2 \
             --name ${{ vars.EKS_CLUSTER_NAME }} || echo "Cluster not found — skipping"
-          
-          # Delete LoadBalancer services to release ELBs
-          kubectl delete svc frontend -n devops-bank 2>/dev/null || echo "Service not found"
-          kubectl delete svc prometheus-grafana -n monitoring 2>/dev/null || echo "Service not found"
-          
-          # Wait for ELBs to be deleted
-          echo "Waiting for ELBs to be released..."
-          sleep 60
+
+          # Delete ALL LoadBalancer services across all namespaces
+          echo "Deleting all LoadBalancer services..."
+          kubectl get svc --all-namespaces \
+            -o jsonpath='{range .items[?(@.spec.type=="LoadBalancer")]}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' | \
+          while read namespace name; do
+            echo "Deleting svc/$name in namespace/$namespace"
+            kubectl delete svc $name -n $namespace 2>/dev/null || echo "Already gone"
+          done
+
+          echo "Waiting 90s for ELBs to be released..."
+          sleep 90
       
       # ── Backup Sealed Secrets key before destroy 
       - name: Backup Sealed Secrets key
