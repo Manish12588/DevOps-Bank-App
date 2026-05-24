@@ -11,7 +11,7 @@ terraform {
   # Remote state — stored in S3 so state is shared and not lost
   backend "s3" {
     bucket = "devops-bank-app-tfstate"
-    key    = "ec2/terraform.tfstate"
+    key    = "eks/terraform.tfstate"
     region = "us-west-2"
   }
 }
