@@ -1,12 +1,13 @@
-# ── Prometheus + Grafana + AlertManager values ────────────────────────────────
-
 grafana:
   adminPassword: admin123
   service:
     type: LoadBalancer
   sidecar:
     datasources:
-      defaultDatasourceEnabled: false    # ← fix duplicate default datasource
+      enabled: true
+      defaultDatasourceEnabled: false  # disable built-in default
+      label: grafana_datasource        # watch ConfigMaps with this label
+      labelValue: "1"
 
 prometheus:
   prometheusSpec:

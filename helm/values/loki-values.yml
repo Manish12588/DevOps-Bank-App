@@ -1,5 +1,3 @@
-# ── Loki + Promtail values ────────────────────────────────────────────────────
-
 loki:
   persistence:
     enabled: true
@@ -8,4 +6,5 @@ loki:
 
 promtail:
   config:
-    lokiAddress: http://loki:3100/loki/api/v1/push
+    clients:
+      - url: http://loki:3100/loki/api/v1/push
