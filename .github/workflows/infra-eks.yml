@@ -118,6 +118,28 @@ jobs:
             -n kube-system \
             --timeout=120s
           echo "Sealed Secrets ready"
+      
+      # ── Restore Sealed Secrets key from S3
+      - name: Restore Sealed Secrets key
+        run: |
+          aws s3 cp s3://devops-bank-app-tfstate/sealed-secrets-master-key.yml \
+            sealed-secrets-master-key.yml 2>/dev/null || echo "No backup found"
+
+          if [ -f sealed-secrets-master-key.yml ]; then
+            kubectl apply -f sealed-secrets-master-key.yml
+            kubectl rollout restart deployment sealed-secrets-controller \
+              -n kube-system || true
+            echo "Waiting for controller to restart..."
+            sleep 15
+            kubectl wait --for=condition=Ready pods \
+              -l name=sealed-secrets-controller \
+              -n kube-system \
+              --timeout=60s
+            rm sealed-secrets-master-key.yml
+            echo "Sealed Secrets key restored successfully"
+          else
+            echo "No backup found — fresh install, need to re-seal secrets"
+          fi
 
       # ── ArgoCD 
       - name: Install ArgoCD

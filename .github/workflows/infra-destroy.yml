@@ -99,6 +99,23 @@ jobs:
           # Wait for ELBs to be deleted
           echo "Waiting for ELBs to be released..."
           sleep 60
+      
+      # ── Backup Sealed Secrets key before destroy 
+      - name: Backup Sealed Secrets key
+        run: |
+          KEY=$(kubectl get secret -n kube-system \
+            -l sealedsecrets.bitnami.com/sealed-secrets-key \
+            -o yaml 2>/dev/null)
+
+          if [ -n "$KEY" ]; then
+            echo "$KEY" > sealed-secrets-master-key.yml
+            aws s3 cp sealed-secrets-master-key.yml \
+              s3://devops-bank-app-tfstate/sealed-secrets-master-key.yml
+            rm sealed-secrets-master-key.yml
+            echo "Sealed Secrets key backed up to S3"
+          else
+            echo "No Sealed Secrets key found — skipping backup"
+          fi
 
       - name: Terraform Destroy
         run: terraform destroy -auto-approve
