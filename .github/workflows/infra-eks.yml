@@ -1,0 +1,60 @@
+name: Provision EKS Infrastructure
+
+on:
+  workflow_dispatch:
+
+jobs:
+  provision-eks:
+    name: Provision EKS
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: terraform/eks
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: terraform/eks
+
+      - name: Terraform Plan
+        run: terraform plan
+        working-directory: terraform/eks
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        working-directory: terraform/eks
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig \
+            --region us-west-2 \
+            --name devops-bank-eks
+
+      - name: Summary
+        run: |
+          echo "=========================================="
+          echo "  EKS Infrastructure Ready"
+          echo "=========================================="
+          terraform output configure_kubectl
+          echo "=========================================="
+        working-directory: terraform/eks
