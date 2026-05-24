@@ -107,9 +107,13 @@ jobs:
       # ── Backup Sealed Secrets key before destroy 
       - name: Backup Sealed Secrets key
         run: |
+          aws eks update-kubeconfig \
+            --region us-west-2 \
+            --name ${{ vars.EKS_CLUSTER_NAME }} 2>/dev/null || echo "Cluster not found — skipping backup"
+
           KEY=$(kubectl get secret -n kube-system \
             -l sealedsecrets.bitnami.com/sealed-secrets-key \
-            -o yaml 2>/dev/null)
+            -o yaml 2>/dev/null) || true
 
           if [ -n "$KEY" ]; then
             echo "$KEY" > sealed-secrets-master-key.yml
