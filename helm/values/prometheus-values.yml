@@ -3,31 +3,15 @@
 grafana:
   adminPassword: admin123
   service:
-    type: LoadBalancer    # expose Grafana via AWS ELB
-  dashboardProviders:
-    dashboardproviders.yaml:
-      apiVersion: 1
-      providers:
-        - name: default
-          folder: DevOps Bank
-          type: file
-          options:
-            path: /var/lib/grafana/dashboards/default
-  dashboards:
-    default:
-      kubernetes-cluster:
-        gnetId: 7249      # Kubernetes cluster dashboard
-        revision: 1
-        datasource: Prometheus
-      node-exporter:
-        gnetId: 1860      # Node exporter dashboard
-        revision: 37
-        datasource: Prometheus
+    type: LoadBalancer
+  sidecar:
+    datasources:
+      defaultDatasourceEnabled: false    # ← fix duplicate default datasource
 
 prometheus:
   prometheusSpec:
     serviceMonitorSelectorNilUsesHelmValues: false
-    retention: 15d        # keep metrics for 15 days
+    retention: 15d
     storageSpec:
       volumeClaimTemplate:
         spec:
