@@ -143,7 +143,7 @@ docker compose down -v    # delete all data
 ### Default login
 | Email | Password |
 |-------|----------|
-| `admin@bank.local` | `admin123` |
+| `admin@bank.local` | `password` |
 
 ---
 
