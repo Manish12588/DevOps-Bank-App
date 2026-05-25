@@ -13,34 +13,24 @@ on:
       deploy_ec2:
         description: 'Deploy to EC2 server'
         required: true
-        default: false
+        default: 'false'
         type: choice
         options:
-          - 'ture'
+          - 'true'
           - 'false'
-  workflow_run:
-    workflows: ["Infrastructure Pipeline"]
-    types:
-      - completed
-    branches:
-      - main
 
 jobs:
   code-quality:
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
     uses: ./.github/workflows/code-quality-check.yml
 
   secrets-scan:
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
     uses: ./.github/workflows/secrets-scan.yml
     secrets: inherit
 
   dependency-scan:
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
     uses: ./.github/workflows/dependency-scan.yml
 
   docker-scan:
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
     uses: ./.github/workflows/docker-lint.yml
 
   build:
@@ -54,16 +44,14 @@ jobs:
     needs: [build]
     uses: ./.github/workflows/docker-image-scan.yml
     secrets: inherit
-  
+
   deploy-eks:
     needs: [trivy]
     uses: ./.github/workflows/deploy-eks.yml
     secrets: inherit
-  
+
   deploy-ec2:
     needs: [trivy]
     if: ${{ github.event.inputs.deploy_ec2 == 'true' }}
     uses: ./.github/workflows/deploy-ec2.yml
     secrets: inherit
-
-  
