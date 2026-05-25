@@ -169,7 +169,33 @@ jobs:
           fi
 
       - name: Terraform Destroy
-        run: terraform destroy -auto-approve
+        run: |
+          terraform destroy -auto-approve || {
+            echo "Terraform destroy failed — cleaning up VPC dependencies..."
+            
+            VPC_ID=$(aws ec2 describe-vpcs \
+              --filters "Name=tag:Name,Values=devops-bank-vpc" \
+              --query "Vpcs[0].VpcId" --output text \
+              --region ${{ vars.AWS_REGION }} 2>/dev/null)
+
+            if [ "$VPC_ID" != "None" ] && [ -n "$VPC_ID" ]; then
+              # Delete all k8s security groups
+              aws ec2 describe-security-groups \
+                --filters "Name=vpc-id,Values=$VPC_ID" \
+                --query "SecurityGroups[?GroupName!='default'].GroupId" \
+                --output text --region ${{ vars.AWS_REGION }} | tr '\t' '\n' | \
+              while read sg; do
+                [ -n "$sg" ] && echo "Deleting SG: $sg" && \
+                  aws ec2 delete-security-group \
+                    --group-id $sg \
+                    --region ${{ vars.AWS_REGION }} 2>/dev/null || true
+              done
+
+              sleep 30
+              echo "Retrying terraform destroy..."
+              terraform destroy -auto-approve
+            fi
+          }
         working-directory: terraform/eks
 
       - name: Summary
