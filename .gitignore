@@ -36,3 +36,9 @@ __pycache__/
 .idea/
 *.swp
 *.swo
+
+# Node.js
+node_modules/
+app/backend/node_modules/
+app/frontend/node_modules/
+npm-debug.log*
