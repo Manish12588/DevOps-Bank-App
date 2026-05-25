@@ -5,8 +5,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
+const morgan = require('morgan');
 app.use(cors());
 app.use(express.json());
+app.use(morgan('combined'));
 
 const pool = new Pool({
   host: process.env.DB_HOST || 'db',
