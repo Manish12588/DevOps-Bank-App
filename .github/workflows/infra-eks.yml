@@ -193,9 +193,9 @@ jobs:
 
           echo "Waiting for PostgreSQL to accept connections..."
           for i in $(seq 1 30); do
-            if kubectl exec -i $DB_POD -n devops-bank -- \
-              pg_isready -U bankuser -d bankdb 2>/dev/null; then
-              echo "PostgreSQL is ready"
+            if kubectl exec -i $DB_POD -n devops-bank \
+              -- psql -U bankuser -d bankdb < app/database/init.sql 2>/dev/null; then
+              echo "Database schema initialized"
               break
             fi
             echo "Attempt $i/30 — waiting 10s..."
