@@ -314,6 +314,31 @@ git push
 
 ---
 
+## 🤖 AI Assistant
+
+The app includes an AI Assistant powered by [Ollama](https://ollama.ai) that can answer questions about your accounts and balances.
+
+> **Note:** The AI Assistant is only available in the **Docker Compose local setup**. It is not deployed in the Kubernetes/EKS environment due to GPU and memory requirements of LLM models.
+
+### Run locally with AI:
+```bash
+# Start all services including Ollama
+docker compose up --build
+
+# Pull a model (run after containers start)
+docker exec -it bank-ollama ollama pull tinyllama
+
+# Access AI Assistant at http://localhost:8080
+```
+
+### Supported questions:
+- "Which account has the highest balance?"
+- "Summarise all my accounts"
+- "What is my total balance?"
+- "Which account type has the most money?"
+
+---
+
 ## 🔒 Security
 
 | Feature | Implementation |
