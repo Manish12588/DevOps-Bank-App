@@ -191,6 +191,17 @@ jobs:
             -n devops-bank \
             -o jsonpath="{.items[0].metadata.name}")
 
+          echo "Waiting for PostgreSQL to accept connections..."
+          for i in $(seq 1 30); do
+            if kubectl exec -i $DB_POD -n devops-bank -- \
+              pg_isready -U bankuser -d bankdb 2>/dev/null; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            echo "Attempt $i/30 — waiting 10s..."
+            sleep 10
+          done
+
           echo "Initializing database schema..."
           kubectl exec -i $DB_POD \
             -n devops-bank \
